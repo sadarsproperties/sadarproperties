@@ -1,0 +1,18 @@
+{
+  "name": "universal-scraper",
+  "version": "1.0.0",
+  "description": "A modular, configuration-driven web scraping framework using Playwright.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "scrape": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "playwright": "^1.44.1"
+  }
+}
