@@ -1,0 +1,2 @@
+# sadarproperties
+ Real estate wholesaling 
