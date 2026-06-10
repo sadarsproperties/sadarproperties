@@ -5,14 +5,32 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "scrape": "node index.js"
+    "prestart": "node scripts/free-ports.mjs",
+    "start": "concurrently -k -n API,WEB -c blue,green \"node server/index.js\" \"npm --prefix dashboard run dev\"",
+    "dev": "npm start",
+    "scrape": "node index.js",
+    "server": "node server/index.js",
+    "dashboard": "npm run dev --prefix dashboard",
+    "dashboard:build": "npm run build --prefix dashboard",
+    "setup": "npm install && npm install --prefix dashboard",
+    "db:migrate:sqlite": "node server/scripts/migrate-from-sqlite.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "concurrently": "^10.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "csv-writer": "^1.6.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.21.0",
     "playwright": "^1.44.1"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^12.10.0"
   }
 }
