@@ -13,7 +13,8 @@
     "dashboard": "npm run dev --prefix dashboard",
     "dashboard:build": "npm run build --prefix dashboard",
     "setup": "npm install && npm install --prefix dashboard",
-    "db:migrate:sqlite": "node server/scripts/migrate-from-sqlite.js"
+    "db:migrate:sqlite": "node server/scripts/migrate-from-sqlite.js",
+    "db:clear": "node server/scripts/clear-db.js"
   },
   "keywords": [],
   "author": "",

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import cookieParser from 'cookie-parser';
@@ -21,9 +22,15 @@ import {
   query,
   autoMatchProperty,
 } from './db.js';
-import { seedDatabase } from './seed.js';
+import { sendEmail, buildDealEmailHtml, buildDealEmailText } from './resend.js';
+import { CONFIG } from '../config.js';
 
-import 'dotenv/config';
+// Scrapers
+import { scrapeCraigslist } from '../scrapers/craigslist.js';
+import { scrapeZillow } from '../scrapers/zillow.js';
+import { scrapeFacebook } from '../scrapers/facebook.js';
+import { scrapePropStream } from '../scrapers/propstream.js';
+import { scrapeBatchLeads } from '../scrapers/batchleads.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -147,58 +154,212 @@ function buildFacebookAuthUrl(state) {
 
 // ==================== AI BUY BOX EXTRACTION (OpenAI + Gemini + Playwright) ====================
 
-async function playwrightScrape(url: string): Promise<string> {
-  // Deeper scraping using Playwright (already in root deps)
-  // Note: LinkedIn often requires login for full profiles. Public pages or company sites work best.
-  // For production, run with stealth plugins or use proxies.
+async function playwrightScrape(url) {
+  // Advanced scraping using Playwright (synchronized with CLI scraper configuration)
   try {
     const { chromium } = await import('playwright');
-    const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    const browser = await chromium.launch({
+      headless: CONFIG.headless, // Respect config.js setting (allows solving CAPTCHAs in headed mode)
+      args: [
+        '--disable-blink-features=AutomationControlled', // Bypass basic automation detection
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream'
+      ]
+    });
+    
+    // Create page with configured custom User-Agent and proxy from config.js
+    const context = await browser.newContext({
+      userAgent: CONFIG.userAgent,
+      viewport: { width: 1280, height: 800 },
+      proxy: CONFIG.proxy
+    });
+
+    // Inject stealth init scripts to bypass automated browser signatures (PerimeterX, Cloudflare)
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      window.chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      
+      // Align platform and userAgentData to match the chosen User-Agent and prevent CAPTCHA loops
+      const ua = navigator.userAgent;
+      let platformVal = 'Linux x86_64';
+      if (ua.includes('Windows')) platformVal = 'Win32';
+      else if (ua.includes('Macintosh')) platformVal = 'MacIntel';
+      Object.defineProperty(navigator, 'platform', { get: () => platformVal });
+
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) =>
+        parameters.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission })
+          : originalQuery(parameters);
+    });
+    
+    // Detect special platforms and utilize the dedicated scraper engines
+    let scraperResults = null;
+    const lowerUrl = url.toLowerCase();
+    try {
+      if (lowerUrl.includes('zillow.com')) {
+        console.log('[Server Scraper] Running dedicated Zillow Scraper...');
+        scraperResults = await scrapeZillow(context, url);
+      } else if (lowerUrl.includes('craigslist.org') || lowerUrl.includes('craigslist.com')) {
+        console.log('[Server Scraper] Running dedicated Craigslist Scraper...');
+        scraperResults = await scrapeCraigslist(context, url);
+      } else if (lowerUrl.includes('facebook.com')) {
+        console.log('[Server Scraper] Running dedicated Facebook Scraper...');
+        scraperResults = await scrapeFacebook(context, url);
+      } else if (lowerUrl.includes('propstream.com')) {
+        console.log('[Server Scraper] Running dedicated PropStream Scraper...');
+        scraperResults = await scrapePropStream(context, url);
+      } else if (lowerUrl.includes('batchleads.io') || lowerUrl.includes('batchleads.com')) {
+        console.log('[Server Scraper] Running dedicated BatchLeads Scraper...');
+        scraperResults = await scrapeBatchLeads(context, url);
+      }
+    } catch (scraperErr) {
+      console.warn(`[Server Scraper] Dedicated scraper execution failed: ${scraperErr.message}. Falling back to standard DOM scraping.`);
+    }
+
+    if (scraperResults && scraperResults.length > 0) {
+      console.log(`[Server Scraper] Scraper engine successfully extracted ${scraperResults.length} records.`);
+      await browser.close();
+      return JSON.stringify(scraperResults, null, 2);
+    }
+
+    // Default Fallback: Open page and parse main text/body
+    const page = await context.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    
+    // Scroll slightly to trigger load events for dynamic/lazy-loaded text
+    await page.evaluate(() => window.scrollBy(0, 500));
+    await page.waitForTimeout(1000);
+
     // Get main content + meta description
     const text = await page.evaluate(() => {
       const main = document.querySelector('main, article, .profile, body')?.innerText || document.body.innerText;
       const desc = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
       return (desc + ' ' + main).replace(/\s+/g, ' ').slice(0, 8000);
     });
+    
     await browser.close();
     return text;
   } catch (e) {
-    console.warn('Playwright scrape failed, falling back to fetch:', e.message);
-    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SadarBot/1.0)' } });
+    console.warn('[Server Scraper] Playwright scrape failed, falling back to basic fetch:', e.message);
+    const resp = await fetch(url, { headers: { 'User-Agent': CONFIG.userAgent || 'Mozilla/5.0' } });
     let html = await resp.text();
     return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000);
   }
 }
 
-async function callGemini(prompt: string, content: string) {
+async function callGemini(prompt, content) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('No Gemini key');
-  const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt + '\n\n' + content.slice(0, 6000) }] }],
-      generationConfig: { temperature: 0.1, responseMimeType: 'application/json' }
-    })
-  });
-  if (!resp.ok) throw new Error('Gemini API error');
-  const data = await resp.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-  return JSON.parse(text);
-}
 
-async function extractBuyBox(contentOrUrl: string, isUrl = false) {
-  let content = contentOrUrl;
-  if (isUrl) {
-    content = await playwrightScrape(contentOrUrl);  // Deeper scrape with Playwright
+  // Multi-model fallback sequence matching YouExtractor's driver configuration
+  const models = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro-latest'];
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      console.log(`[Gemini] Attempting extraction with model: ${model}...`);
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt + '\n\n' + content.slice(0, 6000) }] }],
+          generationConfig: { temperature: 0.1, responseMimeType: 'application/json' }
+        })
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.warn(`[Gemini] Model ${model} failed with status ${resp.status}: ${errText}`);
+        lastError = new Error(`Gemini API error ${resp.status}: ${errText}`);
+        continue; // Try next model
+      }
+
+      const data = await resp.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+      return JSON.parse(text);
+    } catch (e) {
+      console.warn(`[Gemini] Call to ${model} threw error: ${e.message}`);
+      lastError = e;
+    }
   }
 
-  const systemPrompt = `You are an expert real estate wholesaling assistant. Extract structured "buy box" criteria from the provided text (investor or buyer preferences from website, LinkedIn, email, etc.).
+  throw lastError || new Error('All Gemini models failed');
+}
+
+async function extractBuyBox(contentOrUrl, isUrl = false) {
+  let content = contentOrUrl;
+  let inferred = null;
+
+  if (isUrl) {
+    content = await playwrightScrape(contentOrUrl);  // Deeper scrape with Playwright
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        let maxPrice = 0;
+        const inferredStates = new Set();
+        const inferredCities = new Set();
+        const inferredTypes = new Set();
+
+        for (const item of parsed) {
+          if (item.price) {
+            const cleanPrice = String(item.price).replace(/[^0-9]/g, '');
+            const p = parseInt(cleanPrice, 10);
+            if (p && p > maxPrice) maxPrice = p;
+          }
+          const locStr = item.address || item.location;
+          if (locStr) {
+            const parts = locStr.split(',');
+            if (parts.length >= 2) {
+              const stateZip = parts[parts.length - 1].trim();
+              const stateMatch = stateZip.match(/^([A-Z]{2})/i);
+              if (stateMatch) inferredStates.add(stateMatch[1].toUpperCase());
+              
+              const city = parts[parts.length - 2].trim();
+              if (city) inferredCities.add(city);
+            } else {
+              const cleanLoc = locStr.trim();
+              const stateMatch = cleanLoc.match(/\b([A-Z]{2})\b/i);
+              if (stateMatch) inferredStates.add(stateMatch[1].toUpperCase());
+              
+              const cityMatch = cleanLoc.match(/\b(Houston|Atlanta|Dallas|Austin|San Antonio|Charlotte|Raleigh|Orlando|Tampa|Miami|Columbus|Cleveland|Indianapolis|Detroit|Memphis|Nashville|Kansas City|St\.? Louis|Chicago)\b/i);
+              if (cityMatch) inferredCities.add(cityMatch[1]);
+            }
+          }
+          const detailsStr = (item.details || '') + ' ' + (item.title || '');
+          if (detailsStr.trim()) {
+            const lowerDet = detailsStr.toLowerCase();
+            if (lowerDet.includes('sfr') || lowerDet.includes('single') || lowerDet.includes('house') || lowerDet.includes('bd') || lowerDet.includes('home')) {
+              inferredTypes.add('Single Family');
+            }
+            if (lowerDet.includes('multi') || lowerDet.includes('duplex') || lowerDet.includes('triplex') || lowerDet.includes('quad') || lowerDet.includes('apartment')) {
+              inferredTypes.add('Multifamily');
+            }
+          }
+        }
+
+        inferred = {
+          states: Array.from(inferredStates),
+          cities: Array.from(inferredCities).slice(0, 5),
+          types: Array.from(inferredTypes),
+          budget: maxPrice > 0 ? maxPrice : null
+        };
+      }
+    } catch (e) {
+      // Not a JSON array, treat as regular page text
+    }
+  }
+
+  let systemPrompt = `You are an expert real estate wholesaling assistant. Extract contact info and structured "buy box" criteria from the provided text (investor or buyer preferences from website, LinkedIn, email, etc.).
 
 Return ONLY valid JSON with this exact shape:
 {
+  "fullName": string | null,
+  "companyName": string | null,
+  "phone": string | null,
+  "email": string | null,
   "preferredStates": string[],
   "preferredCities": string[],
   "desiredPropertyTypes": string[],
@@ -208,70 +369,42 @@ Return ONLY valid JSON with this exact shape:
 
 Be accurate and conservative.`;
 
+  if (inferred) {
+    systemPrompt += `\n\nNote: The input content is a JSON list of scraped properties. Focus on these extracted baselines:
+- preferredStates: ${JSON.stringify(inferred.states)}
+- preferredCities: ${JSON.stringify(inferred.cities)}
+- desiredPropertyTypes: ${JSON.stringify(inferred.types.length ? inferred.types : ['Single Family'])}
+- maxBudget: ${inferred.budget || 'null'}`;
+  }
+
   // Try Gemini first (new)
   if (process.env.GEMINI_API_KEY) {
     try {
-      return normalizeBuyBox(await callGemini(systemPrompt, content));
+      return normalizeBuyBox(await callGemini(systemPrompt, content), inferred);
     } catch (e) { console.warn('Gemini failed:', e.message); }
   }
 
-  const apiKey = process.env.OPENAI_API_KEY || process.env.GROK_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.GROK_API_KEY || process.env.XAI_API_KEY;
 
   if (!apiKey) {
-    return ruleBasedBuyBoxExtraction(content);
+    return ruleBasedBuyBoxExtraction(content, inferred);
   }
 
   try {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    let apiUrl = 'https://api.openai.com/v1/chat/completions';
+    let modelName = 'gpt-4o-mini';
+
+    // Route to x.ai Grok if key matches
+    if (apiKey === process.env.GROK_API_KEY || apiKey === process.env.XAI_API_KEY) {
+      apiUrl = 'https://api.x.ai/v1/chat/completions';
+      modelName = 'grok-beta';
+    }
+
+    const resp = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: content.slice(0, 8000) }
-        ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' }
-      })
-    });
-    if (!resp.ok) throw new Error('LLM failed');
-    const data = await resp.json();
-    return normalizeBuyBox(JSON.parse(data.choices?.[0]?.message?.content || '{}'));
-  } catch (err) {
-    console.warn('Primary LLM failed, rules fallback');
-    return ruleBasedBuyBoxExtraction(content);
-  }
-}
-  const apiKey = process.env.OPENAI_API_KEY || process.env.GROK_API_KEY;
-
-  const systemPrompt = `You are an expert real estate wholesaling assistant. Extract structured "buy box" criteria from the provided text (investor or buyer preferences from website, LinkedIn, email, etc.).
-
-Return ONLY valid JSON with this exact shape:
-{
-  "preferredStates": string[],      // e.g. ["TX", "GA", "FL"]
-  "preferredCities": string[],      // e.g. ["Houston", "Atlanta"]
-  "desiredPropertyTypes": string[], // from: Single Family, Multifamily, Duplex, Triplex, Quadplex, Apartment, Commercial
-  "maxBudget": number | null,       // maximum purchase price in USD
-  "notes": string                   // any other criteria, motivation, or comments (max 300 chars)
-}
-
-If nothing relevant is found, return empty arrays and null for budget. Be conservative and accurate.`;
-
-  if (!apiKey) {
-    // Smart rule-based fallback (no API key needed)
-    return ruleBasedBuyBoxExtraction(content);
-  }
-
-  try {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: modelName,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: content.slice(0, 8000) }
@@ -281,57 +414,119 @@ If nothing relevant is found, return empty arrays and null for budget. Be conser
       })
     });
 
-    if (!resp.ok) throw new Error('LLM request failed');
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('[Primary LLM API Failure]:', resp.status, errText);
+      throw new Error(`LLM API error ${resp.status}: ${errText}`);
+    }
+
     const data = await resp.json();
-    const parsed = JSON.parse(data.choices?.[0]?.message?.content || '{}');
-    return normalizeBuyBox(parsed);
+    return normalizeBuyBox(JSON.parse(data.choices?.[0]?.message?.content || '{}'), inferred);
   } catch (err) {
-    console.warn('LLM extraction failed, falling back to rules:', err.message);
-    return ruleBasedBuyBoxExtraction(content);
+    console.warn('[Server Scraper] Primary LLM failed:', err.message);
+    return ruleBasedBuyBoxExtraction(content, inferred);
   }
 }
 
-function normalizeBuyBox(raw) {
+function normalizeBuyBox(raw, inferred = null) {
   const allowedTypes = ['Single Family', 'Multifamily', 'Duplex', 'Triplex', 'Quadplex', 'Apartment', 'Commercial'];
+  const rawTypes = Array.isArray(raw.desiredPropertyTypes) ? raw.desiredPropertyTypes : (inferred?.types || []);
+  const desiredPropertyTypes = [];
+
+  for (const t of rawTypes) {
+    if (!t) continue;
+    const clean = String(t).trim().toLowerCase();
+    if (clean.includes('single') || clean === 'sfr' || clean === 'house' || clean === 'residential') {
+      if (!desiredPropertyTypes.includes('Single Family')) desiredPropertyTypes.push('Single Family');
+    } else if (clean.includes('multi') || clean === 'apartment' || clean === 'apartments') {
+      if (!desiredPropertyTypes.includes('Multifamily')) desiredPropertyTypes.push('Multifamily');
+    } else if (clean.includes('duplex')) {
+      if (!desiredPropertyTypes.includes('Duplex')) desiredPropertyTypes.push('Duplex');
+    } else if (clean.includes('triplex')) {
+      if (!desiredPropertyTypes.includes('Triplex')) desiredPropertyTypes.push('Triplex');
+    } else if (clean.includes('quad')) {
+      if (!desiredPropertyTypes.includes('Quadplex')) desiredPropertyTypes.push('Quadplex');
+    } else if (clean.includes('commercial') || clean === 'retail' || clean === 'office' || clean === 'industrial') {
+      if (!desiredPropertyTypes.includes('Commercial')) desiredPropertyTypes.push('Commercial');
+    } else {
+      const formatted = clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      if (allowedTypes.includes(formatted) && !desiredPropertyTypes.includes(formatted)) {
+        desiredPropertyTypes.push(formatted);
+      }
+    }
+  }
+
+  // Fallback to Single Family if still empty but we have raw input or inferred input
+  if (desiredPropertyTypes.length === 0 && (rawTypes.length > 0 || inferred?.types?.length > 0)) {
+    desiredPropertyTypes.push('Single Family');
+  }
+
   return {
-    preferredStates: Array.isArray(raw.preferredStates) ? raw.preferredStates.filter(Boolean).map(s => String(s).toUpperCase().slice(0,3)) : [],
-    preferredCities: Array.isArray(raw.preferredCities) ? raw.preferredCities.filter(Boolean).map(String) : [],
-    desiredPropertyTypes: Array.isArray(raw.desiredPropertyTypes) ? raw.desiredPropertyTypes.filter(t => allowedTypes.includes(t)) : [],
-    maxBudget: raw.maxBudget ? Math.round(Number(raw.maxBudget)) : null,
+    fullName: raw.fullName || raw.name || null,
+    companyName: raw.companyName || raw.company || null,
+    phone: raw.phone || null,
+    email: raw.email || null,
+    preferredStates: Array.isArray(raw.preferredStates) && raw.preferredStates.length ? raw.preferredStates.filter(Boolean).map(s => String(s).toUpperCase().slice(0,3)) : (inferred?.states || []),
+    preferredCities: Array.isArray(raw.preferredCities) && raw.preferredCities.length ? raw.preferredCities.filter(Boolean).map(String) : (inferred?.cities || []),
+    desiredPropertyTypes,
+    maxBudget: raw.maxBudget ? Math.round(Number(raw.maxBudget)) : (inferred?.budget || null),
     notes: String(raw.notes || '').slice(0, 300),
   };
 }
 
-function ruleBasedBuyBoxExtraction(text) {
+function ruleBasedBuyBoxExtraction(text, inferred = null) {
   const lower = text.toLowerCase();
-  const states = [];
-  const stateRegex = /\b(TX|GA|FL|CA|NC|SC|OH|MO|IL|IN|MI|TN|AL|MS|AR|LA|OK|KS|NE|IA|WI|MN|AZ|NV|UT|CO|NM|WA|OR|ID)\b/g;
-  let match;
-  while ((match = stateRegex.exec(text)) !== null) {
-    if (!states.includes(match[1])) states.push(match[1]);
+  
+  const states = inferred?.states || [];
+  if (states.length === 0) {
+    const stateRegex = /\b(TX|GA|FL|CA|NC|SC|OH|MO|IL|IN|MI|TN|AL|MS|AR|LA|OK|KS|NE|IA|WI|MN|AZ|NV|UT|CO|NM|WA|OR|ID)\b/g;
+    let match;
+    while ((match = stateRegex.exec(text)) !== null) {
+      if (!states.includes(match[1])) states.push(match[1]);
+    }
   }
 
-  const cities = [];
-  const cityMatches = text.match(/\b(Houston|Atlanta|Dallas|Austin|San Antonio|Charlotte|Raleigh|Orlando|Tampa|Miami|Columbus|Cleveland|Indianapolis|Detroit|Memphis|Nashville|Kansas City|St\.? Louis|Chicago)\b/gi);
-  if (cityMatches) cityMatches.forEach(c => { const clean = c.replace(/\./g,''); if (!cities.includes(clean)) cities.push(clean); });
+  const cities = inferred?.cities || [];
+  if (cities.length === 0) {
+    const cityMatches = text.match(/\b(Houston|Atlanta|Dallas|Austin|San Antonio|Charlotte|Raleigh|Orlando|Tampa|Miami|Columbus|Cleveland|Indianapolis|Detroit|Memphis|Nashville|Kansas City|St\.? Louis|Chicago)\b/gi);
+    if (cityMatches) cityMatches.forEach(c => { const clean = c.replace(/\./g,''); if (!cities.includes(clean)) cities.push(clean); });
+  }
 
-  const types = [];
-  if (/\bsfr|single family|single-family\b/.test(lower)) types.push('Single Family');
-  if (/\bmulti|multifamily|multi-family|duplex|triplex|quad|4-plex\b/.test(lower)) types.push('Multifamily');
+  const types = inferred?.types || [];
+  if (types.length === 0) {
+    if (/\bsfr|single family|single-family\b/.test(lower)) types.push('Single Family');
+    if (/\bmulti|multifamily|multi-family|duplex|triplex|quad|4-plex\b/.test(lower)) types.push('Multifamily');
+  }
 
-  let maxBudget = null;
-  const budgetMatch = lower.match(/\$?\s*(\d{2,3}(?:,\d{3})*|\d{5,6})\s*(k|000)?\s*(?:max|maximum|under|below|budget|cap)/i);
-  if (budgetMatch) {
-    let num = parseInt(budgetMatch[1].replace(/,/g,''), 10);
-    if (budgetMatch[2]) num *= 1000;
-    maxBudget = num;
+  let maxBudget = inferred?.budget || null;
+  if (!maxBudget) {
+    const budgetMatch = lower.match(/\$?\s*(\d{2,3}(?:,\d{3})*|\d{5,6})\s*(k|000)?\s*(?:max|maximum|under|below|budget|cap)/i);
+    if (budgetMatch) {
+      let num = parseInt(budgetMatch[1].replace(/,/g,''), 10);
+      if (budgetMatch[2]) num *= 1000;
+      maxBudget = num;
+    }
+  }
+
+  let email = null;
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) email = emailMatch[0];
+
+  let phone = null;
+  const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+  if (phoneMatch) phone = phoneMatch[0];
+
+  let fullName = null;
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length > 0 && lines[0].split(' ').length <= 4 && !lines[0].includes('http') && !lines[0].includes('@')) {
+    fullName = lines[0];
   }
 
   let notes = '';
   if (/\bfix and flip|flipping|rehab|value add\b/.test(lower)) notes += 'Fix & Flip / value-add. ';
   if (/\bbuy and hold|rental|cashflow|hold\b/.test(lower)) notes += 'Buy & Hold / rental. ';
 
-  return normalizeBuyBox({ preferredStates: states, preferredCities: cities.slice(0,5), desiredPropertyTypes: types, maxBudget, notes: notes.trim() });
+  return normalizeBuyBox({ fullName, companyName: null, phone, email, preferredStates: states, preferredCities: cities.slice(0,5), desiredPropertyTypes: types, maxBudget, notes: notes.trim() }, inferred);
 }
 
 async function exchangeFacebookCode(code) {
@@ -377,11 +572,37 @@ app.get('/api/data', requireAuth, async (_req, res) => {
   res.json(await getAllData());
 });
 
-app.post('/api/seed', requireAuth, async (req, res) => {
-  const result = await seedDatabase({ force: Boolean(req.body?.force) });
-  const data = await getAllData();
-  res.json({ ...result, data });
+app.post('/api/support', async (req, res) => {
+  const { name, email, subject, message } = req.body || {};
+  if (!name || !email || !subject || !message) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    const to = process.env.SUPPORT_TO_EMAIL || 'Propertiesbysardar@gmail.com';
+    const html = `
+      <h2>New Support Ticket Recieved</h2>
+      <p><strong>From:</strong> ${name} (&lt;${email}&gt;)</p>
+      <p><strong>Subject:</strong> ${subject}</p>
+      <p><strong>Message:</strong></p>
+      <div style="background:#F9F6F1; padding:16px; border-radius:8px; white-space:pre-wrap;">${message}</div>
+    `;
+
+    await sendEmail({
+      to,
+      subject: `[Support Ticket] ${subject}`,
+      html,
+      replyTo: email,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Support ticket email failed:', err);
+    // Even if email delivery configuration is missing, log it and return success for better UX
+    res.json({ ok: true, warning: 'Email not sent' });
+  }
 });
+
 
 // ==================== LOCAL AUTH ====================
 
@@ -594,64 +815,77 @@ app.post('/api/properties/:id/auto-match', requireAuth, async (req, res) => {
   res.json(result);
 });
 
-// Email/SMS notification simulation on matches
-// In production: integrate Twilio for SMS + SendGrid / Postmark for email
+// Email notifications via Resend
 app.post('/api/properties/:id/notify', requireAuth, async (req, res) => {
-  const prop = await properties.get(req.params.id); // note: properties resource from db
-  const matches = req.body.matches || prop?.topMatches || [];
-  if (!matches.length) return res.json({ sent: 0, message: 'No matches' });
-
-  const now = new Date().toISOString();
-  const log = [];
-
-  for (const m of matches) {
-    // Simulated Email
-    console.log(`[EMAIL NOTIFY] To: ${m.email} | Subject: New Wholesale Deal - ${prop?.address}`);
-    console.log(`  Body: Hi ${m.name}, we have a new ${prop?.propertyType} at ${prop?.address} priced at $${prop?.price}. ARV $${prop?.arv}. Score ${prop?.dealScore}. Reply to discuss.`);
-
-    // Simulated SMS
-    console.log(`[SMS NOTIFY] To: ${m.phone} | "New deal: ${prop?.address} - ${prop?.city} $${prop?.price}. ARV $${prop?.arv}. Score ${prop?.dealScore}. Details in email."`);
-
-    log.push({ to: m.name, email: m.email, phone: m.phone, at: now });
-  }
-
-  // Log to property notes for audit trail
-  const note = `\n[NOTIFICATIONS ${now}] Sent to ${matches.length} contacts: ${matches.map(m => m.name).join(', ')}`;
-  await properties.update(req.params.id, { notes: (prop?.notes || '') + note, status: prop?.status === 'matched' ? 'offer_sent' : prop?.status });
-
-  res.json({ sent: matches.length, log, simulated: true });
-});
-
-// AI-powered buy box extraction (text or URL)
-// Uses OpenAI if OPENAI_API_KEY is set, otherwise smart rule-based fallback
-app.post('/api/ai/extract-buybox', requireAuth, async (req, res) => {
   try {
-    const { text, url } = req.body || {};
-    let content = text || '';
+    const prop = await properties.get(req.params.id);
+    if (!prop) return res.status(404).json({ error: 'Property not found' });
 
-    if (url && !content) {
+    const matches = req.body.matches || prop?.topMatches || [];
+    if (!matches.length) return res.json({ sent: 0, message: 'No matches to notify' });
+
+    const now = new Date().toISOString();
+    const log = [];
+    const errors = [];
+
+    for (const m of matches) {
+      if (!m.email) {
+        errors.push({ name: m.name, reason: 'No email address' });
+        continue;
+      }
+
       try {
-        const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        let html = await resp.text();
-        // Very basic text extraction
-        content = html
-          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .slice(0, 12000);
-      } catch (fetchErr) {
-        content = text || '';
+        const html = buildDealEmailHtml({ recipientName: m.name, property: prop });
+        const text = buildDealEmailText({ recipientName: m.name, property: prop });
+
+        const result = await sendEmail({
+          to: m.email,
+          subject: `New Wholesale Deal — ${prop.address}, ${prop.city || ''}`,
+          html,
+          text,
+        });
+
+        log.push({ to: m.name, email: m.email, emailId: result.id, at: now });
+      } catch (emailErr) {
+        console.error(`[Resend] Failed to email ${m.name} (${m.email}):`, emailErr.message);
+        errors.push({ name: m.name, email: m.email, reason: emailErr.message });
       }
     }
 
-    if (!content) return res.status(400).json({ error: 'Provide text or url' });
+    // Update property status and audit trail
+    const sentNames = log.map(l => l.to).join(', ');
+    const note = `\n[EMAILS ${now}] Sent to ${log.length} contacts via Resend: ${sentNames}`;
+    await properties.update(req.params.id, {
+      notes: (prop?.notes || '') + note,
+      status: prop?.status === 'matched' ? 'offer_sent' : prop?.status,
+    });
 
-    const result = await extractBuyBox(content);
+    res.json({ sent: log.length, log, errors: errors.length ? errors : undefined });
+  } catch (e) {
+    console.error('[Notify] Error:', e);
+    res.status(500).json({ error: 'Failed to send notifications: ' + e.message });
+  }
+});
+
+app.post('/api/ai/extract-buybox', requireAuth, async (req, res) => {
+  try {
+    const { text, url } = req.body || {};
+
+    let result;
+    if (url) {
+      // Direct integration with Playwright scrape and LLM/rules extraction
+      result = await extractBuyBox(url, true);
+    } else {
+      if (!text) {
+        return res.status(400).json({ error: 'Provide text or url' });
+      }
+      result = await extractBuyBox(text, false);
+    }
+
     res.json(result);
   } catch (e) {
-    console.error('AI extract error', e);
-    res.status(500).json({ error: 'Extraction failed' });
+    console.error('AI extract error:', e);
+    res.status(500).json({ error: 'Extraction failed: ' + e.message });
   }
 });
 

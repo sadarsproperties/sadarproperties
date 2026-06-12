@@ -1,10 +1,11 @@
 import { useNavigate, Link } from 'react-router-dom'
+import Footer from '../components/Footer'
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-[#0e2420] text-white">
-      <div className="mx-auto max-w-5xl px-6 py-16">
+    <div className="min-h-screen bg-[#0e2420] text-white flex flex-col justify-between">
+      <div className="mx-auto w-full max-w-5xl px-6 py-16">
         {/* Top bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -46,7 +47,7 @@ export default function OnboardingPage() {
               Log in
             </Link>
           </div>
-          <div className="mt-4 text-xs text-white/50">No credit card required • Seed with sample data instantly</div>
+          <div className="mt-4 text-xs text-white/50">No credit card required • Start closing deals today</div>
         </div>
 
         {/* Feature grid */}
@@ -63,11 +64,9 @@ export default function OnboardingPage() {
             </div>
           ))}
         </div>
-
-        <div className="mt-16 text-center text-xs text-white/40">
-          Backend powered by Express + PostgreSQL • Fully responsive • Works great on desktop and mobile
-        </div>
       </div>
+
+      <Footer dark />
     </div>
   )
 }

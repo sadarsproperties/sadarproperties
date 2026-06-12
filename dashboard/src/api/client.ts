@@ -20,11 +20,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
   fetchData: () => request<AppData>('/data'),
-  seed: (force = false) => request<{ seeded: boolean; message: string; data: AppData }>('/seed', {
-    method: 'POST',
-    body: JSON.stringify({ force }),
-  }),
-
   createProperty: (property: Partial<Property>) =>
     request<Property>('/properties', { method: 'POST', body: JSON.stringify(property) }),
   updateProperty: (id: string, property: Partial<Property>) =>
@@ -68,7 +63,7 @@ export const api = {
     }),
 
   notifyMatches: (id: string, matches: any[]) =>
-    request<{ sent: number; simulated: boolean }>(`/properties/${id}/notify`, {
+    request<{ sent: number; log: Array<{ to: string; email: string; emailId: string; at: string }>; errors?: Array<{ name: string; reason: string }> }>(`/properties/${id}/notify`, {
       method: 'POST',
       body: JSON.stringify({ matches }),
     }),

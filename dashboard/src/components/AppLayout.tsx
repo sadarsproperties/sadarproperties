@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import marcusImg from '../assets/marcus_professional_headshot.jpg';
+import Footer from './Footer';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -116,6 +117,9 @@ export default function AppLayout({ children, title, showBack, onBack }: AppLayo
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8">
         {children}
       </main>
+
+      {/* Premium Footer */}
+      <Footer />
 
       {/* Bottom nav for mobile (simple) */}
       <nav className="sticky bottom-0 z-40 border-t border-black/10 bg-white md:hidden">

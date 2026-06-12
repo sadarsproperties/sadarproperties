@@ -63,6 +63,27 @@ async function main() {
     proxy: CONFIG.proxy
   });
 
+  // Inject stealth init scripts to bypass automated browser signatures (PerimeterX, Cloudflare)
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    window.chrome = { runtime: {} };
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+
+    // Align platform and userAgentData to match the chosen User-Agent and prevent CAPTCHA loops
+    const ua = navigator.userAgent;
+    let platformVal = 'Linux x86_64';
+    if (ua.includes('Windows')) platformVal = 'Win32';
+    else if (ua.includes('Macintosh')) platformVal = 'MacIntel';
+    Object.defineProperty(navigator, 'platform', { get: () => platformVal });
+
+    const originalQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = (parameters) =>
+      parameters.name === 'notifications'
+        ? Promise.resolve({ state: Notification.permission })
+        : originalQuery(parameters);
+  });
+
   try {
     // Execute specific scraper
     const results = await scrapers[engine](context, target);

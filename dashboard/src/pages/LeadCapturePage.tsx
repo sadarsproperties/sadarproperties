@@ -220,7 +220,6 @@ export default function LeadCapturePage() {
             {saving ? 'Saving…' : savedMsg ? savedMsg : 'Save Lead to Database'}
           </button>
         </div>
-        <div className="mt-1 text-center text-[10px] text-[#9CA3AF]">Persisted via backend API + PostgreSQL</div>
       </div>
     </AppLayout>
   )

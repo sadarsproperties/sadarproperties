@@ -38,7 +38,7 @@ export default function PipelinePage() {
 
   async function moveStatus(id: string, newStatus: StatusKey) {
     try {
-      // Optimistic update would be better, but simple refresh for demo
+      // Optimistic update
       await api.updateProperty(id, { status: newStatus } as any)
       if (newStatus === 'matched') {
         await api.autoMatchProperty(id)
@@ -57,11 +57,12 @@ export default function PipelinePage() {
     setNotifyingId(p.id)
     try {
       const data = await api.notifyMatches(p.id, p.topMatches)
-      alert(`Notifications sent to ${data.sent || p.topMatches.length} buyers/investors (demo — check server console for full simulated Email + SMS logs)`)
+      const errorMsg = data.errors?.length ? `\n${data.errors.length} failed to send.` : ''
+      alert(`Emails sent to ${data.sent} buyers/investors via Resend.${errorMsg}`)
       await api.updateProperty(p.id, { status: 'offer_sent', notes: (p.notes || '') + `\n[NOTIFIED ${new Date().toISOString()}]` } as any)
       await refresh()
     } catch (e) {
-      alert('Notify failed (demo)')
+      alert('Email notification failed: ' + (e instanceof Error ? e.message : e))
     } finally {
       setNotifyingId(null)
     }
@@ -141,13 +142,21 @@ export default function PipelinePage() {
                           className="text-[10px] px-2 py-0.5 rounded bg-white border"
                         >Next Stage</button>
                         {(p.status === 'matched' || (p.topMatches?.length || 0) > 0) && (
-                          <button
-                            disabled={notifyingId === p.id}
-                            onClick={() => notifyMatches(p)}
-                            className="text-[10px] px-2 py-0.5 rounded bg-[#1A3C34] text-white"
-                          >
-                            {notifyingId === p.id ? 'Sending...' : 'Notify Email/SMS'}
-                          </button>
+                          <>
+                            <button
+                              disabled={notifyingId === p.id}
+                              onClick={() => notifyMatches(p)}
+                              className="text-[10px] px-2 py-0.5 rounded bg-[#1A3C34] text-white"
+                            >
+                              {notifyingId === p.id ? 'Sending...' : 'Send Email'}
+                            </button>
+                            <button
+                              onClick={() => navigate(`/send-deal?propertyId=${p.id}`)}
+                              className="text-[10px] px-2 py-0.5 rounded bg-[#F5A623] text-[#1A3C34] font-semibold"
+                            >
+                              Send Deal
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -160,7 +169,7 @@ export default function PipelinePage() {
       </div>
 
       <div className="mt-6 text-xs text-[#6B7280]">
-        Tip: Use the Dashboard for quick Auto-Match on high-score deals. Notifications are simulated (check server console). Integrate real Twilio/SendGrid in production.
+        Drag deals between pipeline stages. Use Auto-Match to find buyers, then Send Email to notify them via Resend.
       </div>
     </AppLayout>
   )

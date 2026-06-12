@@ -10,6 +10,9 @@ import AssignmentClosePage from './pages/AssignmentClosePage'
 import LeadCapturePage from './pages/LeadCapturePage'
 import SendDealPage from './pages/SendDealPage'
 import PipelinePage from './pages/PipelinePage'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
+import SupportPage from './pages/SupportPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -38,6 +41,11 @@ export default function App() {
         <Route path="/lead-capture" element={<ProtectedRoute><LeadCapturePage /></ProtectedRoute>} />
         <Route path="/send-deal" element={<ProtectedRoute><SendDealPage /></ProtectedRoute>} />
         <Route path="/pipeline" element={<ProtectedRoute><PipelinePage /></ProtectedRoute>} />
+        
+        {/* Public Utility pages */}
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/support" element={<SupportPage />} />
       </Routes>
     </BrowserRouter>
   )

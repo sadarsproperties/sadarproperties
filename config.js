@@ -15,7 +15,9 @@ export const CONFIG = {
   // Browser options
   headless: process.env.HEADLESS === 'true' || false, // default to false (headed) to observe and avoid easy bot-detection
   slowMo: parseInt(process.env.SLOW_MO || '100', 10), // delay in ms between actions
-  userAgent: process.env.USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  userAgent: process.env.USER_AGENT || (process.platform === 'linux'
+    ? 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'),
 
   // Proxy settings (Optional but recommended for Zillow/Facebook)
   proxy: process.env.PROXY_SERVER ? {

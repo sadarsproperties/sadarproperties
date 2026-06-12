@@ -94,9 +94,17 @@ function extractListingsFromPayload(payload) {
 export async function scrapeZillow(context, targetUrl) {
   const page = await context.newPage();
   const interceptedListings = [];
+  let apiBlocked = false;
 
   page.on('response', async (response) => {
     const responseUrl = response.url();
+    
+    // Check if Zillow returned a 403 Forbidden on API endpoints
+    if (response.status() === 403 && responseUrl.includes('zillow.com')) {
+      console.warn(`[Zillow Scraper] Zillow API returned 403: ${responseUrl}`);
+      apiBlocked = true;
+    }
+
     if (
       !responseUrl.includes('async-create-search-page-state') &&
       !responseUrl.includes('GetSearchPageState')
@@ -135,15 +143,24 @@ export async function scrapeZillow(context, targetUrl) {
   console.log('[Zillow Scraper] Checking for CAPTCHAs or blocks...');
   let blocked = false;
   for (let attempt = 0; attempt < 6; attempt++) {
-    if (await isBlocked(page)) {
+    if (await isBlocked(page) || apiBlocked) {
       blocked = true;
       break;
     }
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1000);
   }
 
-  if (blocked) {
-    console.warn('[Zillow Scraper] Bot detection triggered! Please solve the CAPTCHA in the browser window.');
+  if (blocked || apiBlocked) {
+    console.warn('[Zillow Scraper] Bot detection triggered!');
+    
+    // If blocked via API response (403), load the main homepage to force the interactive CAPTCHA page to load
+    if (apiBlocked && !(await isBlocked(page))) {
+      console.log('[Zillow Scraper] API block detected. Redirecting browser to Zillow homepage to force manual verification challenge...');
+      await page.goto('https://www.zillow.com/', { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2000);
+    }
+
+    console.log('[Zillow Scraper] Please solve the "Press & Hold" CAPTCHA in the browser window.');
     console.log('[Zillow Scraper] Waiting up to 2 minutes for manual verification...');
 
     const cleared = await waitForBlockToClear(page);
@@ -153,7 +170,9 @@ export async function scrapeZillow(context, targetUrl) {
       );
     }
 
-    console.log('[Zillow Scraper] Block cleared. Waiting for listings to load...');
+    console.log('[Zillow Scraper] Block cleared. Navigating back to search page...');
+    apiBlocked = false;
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(3000);
   }
 

@@ -93,7 +93,7 @@ export default function DashboardPage() {
             <div className="mt-1 flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${health?.ok && health?.db?.connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
               <span className="font-semibold text-sm">
-                {health?.ok && health?.db?.connected ? 'PostgreSQL Connected' : 'Database Issue'}
+                {health?.ok && health?.db?.connected ? 'Database Connected' : 'Database Issue'}
               </span>
               {health?.db?.latencyMs != null && (
                 <span className="text-xs text-[#6B7280]">({health.db.latencyMs}ms)</span>
@@ -116,16 +116,12 @@ export default function DashboardPage() {
           { label: 'Capture New Lead', desc: 'Manual or import', to: '/lead-capture', icon: '🔎' },
           { label: 'Deal Analyzer', desc: 'MAO & numbers', to: '/deal-analyzer', icon: '📐' },
           { label: 'Manage Buyers', desc: 'Network & buy boxes', to: '/buyers', icon: '👥' },
-          { label: 'Load Sample Data', desc: 'Seed the database', to: null, icon: '🌱', action: 'seed' },
+          { label: 'View Pipeline', desc: 'Track deal stages', to: '/pipeline', icon: '📊' },
         ].map((a, idx) => (
           <button
             key={idx}
             onClick={() => {
-              if (a.action === 'seed') {
-                api.seed(true).then(() => refresh())
-              } else if (a.to) {
-                navigate(a.to)
-              }
+              if (a.to) navigate(a.to)
             }}
             className="group rounded-3xl border border-black/5 bg-white p-4 text-left transition hover:border-black/10 hover:shadow-sm"
           >
@@ -153,12 +149,12 @@ export default function DashboardPage() {
         <div className="rounded-3xl border border-dashed border-black/10 bg-white p-8 text-center">
           <div className="text-4xl">📭</div>
           <div className="mt-3 font-semibold">No properties yet</div>
-          <p className="mt-1 text-sm text-[#6B7280]">Click “Load Sample Data” above or add your first lead.</p>
+          <p className="mt-1 text-sm text-[#6B7280]">Add your first lead to get started.</p>
           <button
-            onClick={() => api.seed().then(() => refresh())}
+            onClick={() => navigate('/lead-capture')}
             className="mt-4 rounded-2xl bg-[#1A3C34] px-6 py-2 text-sm font-bold text-white"
           >
-            Load Sample Data
+            + Add First Lead
           </button>
         </div>
       )}
@@ -217,22 +213,6 @@ export default function DashboardPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Data management shortcut */}
-      <div className="mt-10 rounded-3xl border border-black/5 bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="font-semibold">Full Data Workspace</div>
-            <div className="text-sm text-[#6B7280]">Edit sellers, buyers, investors and properties with live sync to PostgreSQL.</div>
-          </div>
-          <button
-            onClick={() => alert('The full editable tables live in the Buyers page + you can use CSV import on Lead Capture. Extend as needed!')}
-            className="rounded-2xl border border-black/10 px-4 py-2 text-sm font-semibold hover:bg-black/5"
-          >
-            Open Data Tables
-          </button>
-        </div>
       </div>
     </AppLayout>
   )

@@ -1,37 +1,29 @@
+import 'dotenv/config';
 import pg from 'pg';
 import { randomUUID } from 'crypto';
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL;
+const host = process.env.PGHOST || 'localhost';
+const port = parseInt(process.env.PGPORT || '5432', 10);
+const user = process.env.PGUSER || 'postgres';
+const password = process.env.PGPASSWORD || '';
+const database = process.env.PGDATABASE || 'sadar';
 
-const isSupabase = connectionString?.includes('supabase') || process.env.PG_SSL === 'true' || process.env.DATABASE_URL?.includes('sslmode=require');
+const isSupabase = host.includes('supabase') || process.env.PG_SSL === 'true';
 
-const poolConfig = connectionString
-  ? {
-      connectionString,
-      // Connection pooling tuning
-      max: parseInt(process.env.PG_POOL_MAX || '20', 10),           // max clients in pool
-      min: parseInt(process.env.PG_POOL_MIN || '2', 10),
-      idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
-      connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
-      // SSL for hosted (Supabase requires it)
-      ssl: isSupabase
-        ? { rejectUnauthorized: false }
-        : (process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : undefined),
-    }
-  : {
-      host: process.env.PGHOST || 'localhost',
-      port: parseInt(process.env.PGPORT || '5432', 10),
-      user: process.env.PGUSER || 'postgres',
-      password: process.env.PGPASSWORD || '',
-      database: process.env.PGDATABASE || 'sadar',
-      max: parseInt(process.env.PG_POOL_MAX || '20', 10),
-      min: parseInt(process.env.PG_POOL_MIN || '2', 10),
-      idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
-      connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
-      ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
-    };
+const poolConfig = {
+  host,
+  port,
+  user,
+  password,
+  database,
+  max: parseInt(process.env.PG_POOL_MAX || '20', 10),
+  min: parseInt(process.env.PG_POOL_MIN || '2', 10),
+  idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
+  connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
+  ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+};
 
 export const pool = new Pool(poolConfig);
 
@@ -277,6 +269,14 @@ export async function updateUser(id, updates) {
 
 // ==================== GENERIC CRUD ====================
 
+// pg parameterized queries require JSONB values to be JSON strings
+function serializeParam(value) {
+  if (Array.isArray(value) || (value !== null && typeof value === 'object' && !(value instanceof Date))) {
+    return JSON.stringify(value);
+  }
+  return value;
+}
+
 function createCrud(table, mapRow, mapBodyToDb) {
   return {
     async list() {
@@ -295,7 +295,7 @@ function createCrud(table, mapRow, mapBodyToDb) {
 
       const columns = Object.keys(values);
       const placeholders = columns.map((_, i) => `$${i + 1}`);
-      const params = columns.map((col) => values[col]);
+      const params = columns.map((col) => serializeParam(values[col]));
 
       await query(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
@@ -316,7 +316,7 @@ function createCrud(table, mapRow, mapBodyToDb) {
 
       const params = Object.keys(values)
         .filter((key) => key !== 'id')
-        .map((key) => values[key]);
+        .map((key) => serializeParam(values[key]));
       params.push(id);
 
       await query(`UPDATE ${table} SET ${assignments.join(', ')} WHERE id = $${params.length}`, params);
@@ -410,6 +410,15 @@ const properties = createCrud(
 
 // Export the resources so server/index.js can mount them easily
 export { sellers, buyers, investors, properties };
+
+// Clear all data from tables (respects FK order)
+export async function clearAllData() {
+  await query('DELETE FROM properties');
+  await query('DELETE FROM sellers');
+  await query('DELETE FROM buyers');
+  await query('DELETE FROM investors');
+  return { cleared: true };
+}
 
 // Legacy / convenience functions (still async now)
 export async function getAllData() {

@@ -15,16 +15,16 @@ function formatCurrency(n: number) {
 
 export default function DealAnalyzerPage() {
   const navigate = useNavigate()
-  const [arv, setArv] = useState('185000')
-  const [repair, setRepair] = useState(32000)
-  const [sqft, setSqft] = useState('1450')
-  const [fee, setFee] = useState('10000')
+  const [arv, setArv] = useState('')
+  const [repair, setRepair] = useState(0)
+  const [sqft, setSqft] = useState('')
+  const [fee, setFee] = useState('')
 
-  const [mao, setMao] = useState(87500)
-  const [margin, setMargin] = useState(47.3)
-  const [repairSqft, setRepairSqft] = useState(22.07)
-  const [spread, setSpread] = useState(87500)
-  const [arv70, setArv70] = useState(129500)
+  const [mao, setMao] = useState(0)
+  const [margin, setMargin] = useState(0)
+  const [repairSqft, setRepairSqft] = useState(0)
+  const [spread, setSpread] = useState(0)
+  const [arv70, setArv70] = useState(0)
 
   const recalculate = useCallback(() => {
     const arvN = parseNum(arv)
@@ -183,8 +183,8 @@ export default function DealAnalyzerPage() {
           </div>
 
           <div className="mt-4 flex gap-3">
-            <button onClick={() => navigate('/send-deal')} className="flex-1 rounded-2xl bg-[#F5A623] py-3 font-bold text-[#1A3C34]">Send to Buyers</button>
-            <button onClick={() => navigate('/assignment-close')} className="flex-1 rounded-2xl border-2 border-[#1A3C34] py-3 font-bold">Simulate Close</button>
+            <button onClick={() => navigate('/pipeline')} className="flex-1 rounded-2xl bg-[#F5A623] py-3 font-bold text-[#1A3C34]">Go to Pipeline</button>
+            <button onClick={() => navigate('/dashboard')} className="flex-1 rounded-2xl border-2 border-[#1A3C34] py-3 font-bold">Dashboard</button>
           </div>
         </div>
       </div>
