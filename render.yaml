@@ -3,6 +3,7 @@ services:
   - type: web
     name: sadarproperties-api
     runtime: node
+    plan: free
     buildCommand: npm install
     startCommand: npm run server
     envVars:
