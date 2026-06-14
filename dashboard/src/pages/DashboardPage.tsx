@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../hooks/useStore'
 import { useAuth } from '../hooks/useAuth'
 import AppLayout from '../components/AppLayout'
-import { api } from '../api/client'
+import { api, API_BASE } from '../api/client'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -12,7 +12,7 @@ export default function DashboardPage() {
   const [health, setHealth] = useState<{ ok: boolean; db?: { connected: boolean; latencyMs?: number; error?: string } } | null>(null)
 
   useEffect(() => {
-    fetch('/api/health', { credentials: 'include' })
+    fetch(`${API_BASE}/health`, { credentials: 'include' })
       .then(r => r.json())
       .then(setHealth)
       .catch(() => setHealth({ ok: false }))

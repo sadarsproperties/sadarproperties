@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PublicLayout from '../components/PublicLayout';
+import { API_BASE } from '../api/client';
 
 export default function SupportPage() {
   const [name, setName] = useState('');
@@ -17,7 +18,7 @@ export default function SupportPage() {
     setError('');
     
     try {
-      const res = await fetch('/api/support', {
+      const res = await fetch(`${API_BASE}/support`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, subject, message }),

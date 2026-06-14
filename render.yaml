@@ -1,0 +1,40 @@
+services:
+  # 1. Express Backend (Node.js Web Service)
+  - type: web
+    name: sadarproperties-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run server
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      # These variables will prompt you to enter them when importing the Blueprint
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # 2. React (Vite) Static Frontend (Static Site)
+  - type: static
+    name: sadarproperties-web
+    buildCommand: npm install --prefix dashboard && npm run build --prefix dashboard
+    staticPublishPath: dashboard/dist
+    envVars:
+      # Inject the API host URL dynamically during the build step
+      - key: VITE_API_URL
+        fromService:
+          name: sadarproperties-api
+          type: web
+          property: host

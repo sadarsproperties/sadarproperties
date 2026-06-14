@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { api } from '../api/client';
+import { api, API_BASE } from '../api/client';
 
 export interface AuthUser {
   id: string;
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const r = await fetch('/api/auth/me', { credentials: 'include' });
+      const r = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
         setUser(data.user);
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
