@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import marcusImg from '../assets/marcus_professional_headshot.jpg';
 import Footer from './Footer';
+import Logo from './Logo';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -41,15 +42,8 @@ export default function AppLayout({ children, title, showBack, onBack }: AppLayo
                   </svg>
                 </button>
               )}
-              <Link to="/dashboard" className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F5A623] shadow-sm">
-                  <svg width="18" height="16" viewBox="0 0 24 22" fill="none">
-                    <path d="M12 2L2 9V20C2 20.55 2.45 21 3 21H9V15H15V21H21C21.55 21 22 20.55 22 20V9L12 2Z" fill="#1A3C34" />
-                  </svg>
-                </div>
-                <div className="text-xl font-extrabold tracking-tight text-[#1A3C34]">
-                  Wholesale<span className="text-[#F5A623]">IQ</span>
-                </div>
+              <Link to="/dashboard">
+                <Logo size={36} />
               </Link>
             </div>
 

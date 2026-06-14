@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import Footer from '../components/Footer'
+import Logo from '../components/Logo'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -39,11 +40,8 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Link to="/onboarding" className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-2xl bg-[#F5A623] flex items-center justify-center shadow">
-                <svg width="22" height="20" viewBox="0 0 24 22" fill="none"><path d="M12 2L2 9V20C2 20.55 2.45 21 3 21H9V15H15V21H21C21.55 21 22 20.55 22 20V9L12 2Z" fill="#1A3C34"/></svg>
-              </div>
-              <span className="text-3xl font-extrabold tracking-tight text-[#1A3C34]">Wholesale<span className="text-[#F5A623]">IQ</span></span>
+            <Link to="/onboarding">
+              <Logo size={44} />
             </Link>
           </div>
 

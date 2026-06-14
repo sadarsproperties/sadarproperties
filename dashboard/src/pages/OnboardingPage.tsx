@@ -1,5 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom'
 import Footer from '../components/Footer'
+import Logo from '../components/Logo'
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -8,14 +9,7 @@ export default function OnboardingPage() {
       <div className="mx-auto w-full max-w-5xl px-6 py-16">
         {/* Top bar */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F5A623]">
-              <svg width="22" height="20" viewBox="0 0 24 22" fill="none">
-                <path d="M12 2L2 9V20C2 20.55 2.45 21 3 21H9V15H15V21H21C21.55 21 22 20.55 22 20V9L12 2Z" fill="#1A3C34" />
-              </svg>
-            </div>
-            <div className="text-2xl font-extrabold tracking-tighter">Wholesale<span className="text-[#F5A623]">IQ</span></div>
-          </div>
+          <Logo size={44} dark />
           <button onClick={() => navigate('/dashboard')} className="rounded-2xl border border-white/20 px-5 py-2 text-sm font-semibold hover:bg-white/10">
             Log in
           </button>

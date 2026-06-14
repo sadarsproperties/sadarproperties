@@ -14,7 +14,7 @@ function getApiKey() {
 
 function getFromAddress() {
   // Resend requires a verified domain. Use env or default.
-  return process.env.RESEND_FROM || 'WholesaleIQ <deals@wholesaleiq.com>';
+  return process.env.RESEND_FROM || 'Sadar Properties <deals@sadarproperties.com>';
 }
 
 /**
@@ -119,7 +119,7 @@ export function buildDealEmailHtml({ recipientName, property }) {
           <tr>
             <td style="background:#1A3C34; padding:24px 32px;">
               <h1 style="margin:0; color:#F5A623; font-size:24px; font-weight:800;">🏠 New Wholesale Deal</h1>
-              <p style="margin:4px 0 0; color:rgba(255,255,255,0.7); font-size:14px;">WholesaleIQ</p>
+              <p style="margin:4px 0 0; color:rgba(255,255,255,0.7); font-size:14px;">Sadar Properties</p>
             </td>
           </tr>
           <!-- Body -->
@@ -197,7 +197,7 @@ export function buildDealEmailHtml({ recipientName, property }) {
 
               <p style="margin:0; font-size:14px; color:#6B7280;">
                 Best regards,<br />
-                <strong style="color:#1A3C34;">WholesaleIQ Team</strong>
+                <strong style="color:#1A3C34;">Sadar Properties Team</strong>
               </p>
             </td>
           </tr>
@@ -205,7 +205,7 @@ export function buildDealEmailHtml({ recipientName, property }) {
           <tr>
             <td style="background:#F3F4F6; padding:16px 32px; text-align:center;">
               <p style="margin:0; font-size:12px; color:#9CA3AF;">
-                WholesaleIQ • Wholesale Real Estate Deals<br />
+                Sadar Properties • Wholesale Real Estate Deals<br />
                 You're receiving this because your buy box criteria matched this deal.
               </p>
             </td>
@@ -240,14 +240,14 @@ Deal Score: ${property.dealScore ?? 'N/A'}/100
 
 Interested? Reply to this email to discuss.
 
-— WholesaleIQ Team`;
+— Sadar Properties Team`;
 }
 
 /**
  * Build a welcome email template for newly signed up users.
  */
 export function buildWelcomeEmailHtml(name) {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://sadarproperties-web.onrender.com';
   return `
 <!DOCTYPE html>
 <html>
@@ -336,7 +336,7 @@ export function buildWelcomeEmailHtml(name) {
 }
 
 export function buildWelcomeEmailText(name) {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://sadarproperties-web.onrender.com';
   return `Hi ${name},
 
 Welcome to Sadar Properties — your real estate wholesaling toolkit!

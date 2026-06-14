@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-bold text-[#1A3C34]">1. Information We Collect</h2>
         <p>
-          WholesaleIQ collect properties and leads details that you manually input, import via CSV files, or scan using our services. This includes property addresses, estimated repair costs, asking prices, motivated seller contact information, and cash buyer contact details.
+          Sadar Properties collects properties and lead details that you manually input, import via CSV files, or scan using our services. This includes property addresses, estimated repair costs, asking prices, motivated seller contact information, and cash buyer contact details.
         </p>
       </section>
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Logo from './Logo';
 
 interface FooterProps {
   dark?: boolean;
@@ -17,18 +18,9 @@ export default function Footer({ dark = false }: FooterProps) {
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4 pb-8 border-b border-inherit">
           {/* Brand Col */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F5A623] shadow-sm">
-                <svg width="16" height="15" viewBox="0 0 24 22" fill="none">
-                  <path d="M12 2L2 9V20C2 20.55 2.45 21 3 21H9V15H15V21H21C21.55 21 22 20.55 22 20V9L12 2Z" fill="#1A3C34" />
-                </svg>
-              </div>
-              <span className={`text-lg font-extrabold tracking-tight ${dark ? 'text-white' : 'text-[#1A3C34]'}`}>
-                Wholesale<span className="text-[#F5A623]">IQ</span>
-              </span>
-            </div>
+            <Logo dark={dark} size={32} />
             <p className={`text-sm leading-relaxed ${textMutedClass}`}>
-              The premium production-ready platform for real estate wholesalers and investors to analyze, match, and close deals effortlessly.
+              The premium platform for real estate wholesaling and property investment. Analyze, match, and notify buyers effortlessly.
             </p>
           </div>
 
@@ -103,7 +95,7 @@ export default function Footer({ dark = false }: FooterProps) {
         {/* Bottom Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-xs font-semibold">
           <p className={textMutedClass}>
-            &copy; {new Date().getFullYear()} WholesaleIQ. All rights reserved. Built for professional scale.
+            &copy; {new Date().getFullYear()} Sadar Properties. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <span className={`${textMutedClass} ${textMutedHoverClass} transition cursor-pointer`}>
