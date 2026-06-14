@@ -41,6 +41,10 @@ services:
     runtime: static
     buildCommand: npm install --prefix dashboard && npm run build --prefix dashboard
     staticPublishPath: dashboard/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       # Inject the API host URL dynamically during the build step
       - key: VITE_API_URL
