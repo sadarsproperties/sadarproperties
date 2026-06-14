@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { API_BASE } from '../api/client';
+import { getAuthToken, setAuthToken, clearAuthToken } from '../api/token';
 
-const TOKEN_KEY = 'sadar_auth_token';
+export { getAuthToken, setAuthToken, clearAuthToken };
 
 export interface AuthUser {
   id: string;
@@ -20,20 +21,8 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setAuthToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearAuthToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
 /** Build headers with Authorization if a token exists */
-export function authHeaders(extra?: Record<string, string>): Record<string, string> {
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   const token = getAuthToken();
   if (token) {

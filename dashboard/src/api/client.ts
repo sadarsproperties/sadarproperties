@@ -1,5 +1,5 @@
 import type { AppData, Buyer, Investor, MatchedContact, Property, Seller } from '../types';
-import { getAuthToken } from '../hooks/useAuth';
+import { getAuthToken } from './token';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
 let normalized = (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://') || rawApiUrl.startsWith('/'))
