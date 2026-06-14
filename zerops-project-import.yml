@@ -1,0 +1,16 @@
+# Zerops Project Import Definition
+# Paste this file's contents into the "Import Project" window in the Zerops GUI dashboard
+# to automatically provision all required services.
+
+project:
+  name: sadar-properties
+services:
+  # 1. Node.js backend API
+  - hostname: api
+    type: nodejs@20
+    enableSubdomainAccess: true
+
+  # 2. React (Vite) static frontend
+  - hostname: web
+    type: static
+    enableSubdomainAccess: true

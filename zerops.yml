@@ -6,6 +6,8 @@ zerops:
   - setup: api
     build:
       base: nodejs@20
+      prepareCommands:
+        - apk add --no-cache build-base python3
       buildCommands:
         - npm install --production=false
       deployFiles:
@@ -36,3 +38,4 @@ zerops:
       - dashboard/node_modules
     run:
       base: static
+`
