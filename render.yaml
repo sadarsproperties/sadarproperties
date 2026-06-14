@@ -49,6 +49,6 @@ services:
       # Inject the API host URL dynamically during the build step
       - key: VITE_API_URL
         fromService:
-          name: sadarproperties-api
+          name: https://sadarproperties-api.onrender.com
           type: web
           property: url

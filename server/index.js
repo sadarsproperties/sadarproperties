@@ -81,24 +81,28 @@ function clearAuthCookie(res) {
   res.clearCookie(JWT_COOKIE_NAME, { path: '/' });
 }
 
-function getUserFromReq(req) {
+async function getUserFromReq(req) {
   const token = req.cookies?.[JWT_COOKIE_NAME];
   if (!token) return null;
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    return getUserById(payload.sub);
+    return await getUserById(payload.sub);
   } catch {
     return null;
   }
 }
 
-function requireAuth(req, res, next) {
-  const user = getUserFromReq(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+async function requireAuth(req, res, next) {
+  try {
+    const user = await getUserFromReq(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    next(err);
   }
-  req.user = user;
-  next();
 }
 
 // ==================== OAUTH HELPERS (manual, no extra deps) ====================
@@ -786,8 +790,8 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/auth/me', (req, res) => {
-  const user = getUserFromReq(req);
+app.get('/api/auth/me', async (req, res) => {
+  const user = await getUserFromReq(req);
   if (!user) return res.status(401).json({ error: 'Not logged in' });
   res.json({ user });
 });
