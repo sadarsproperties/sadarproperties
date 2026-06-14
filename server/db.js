@@ -10,20 +10,30 @@ const user = process.env.PGUSER || 'postgres';
 const password = process.env.PGPASSWORD || '';
 const database = process.env.PGDATABASE || 'sadar';
 
-const isSupabase = host.includes('supabase') || process.env.PG_SSL === 'true';
+const connectionString = process.env.DATABASE_URL;
+const isSupabase = (connectionString && connectionString.includes('supabase')) || host.includes('supabase') || process.env.PG_SSL === 'true';
 
-const poolConfig = {
-  host,
-  port,
-  user,
-  password,
-  database,
-  max: parseInt(process.env.PG_POOL_MAX || '20', 10),
-  min: parseInt(process.env.PG_POOL_MIN || '2', 10),
-  idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
-  connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
-  ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
-};
+const poolConfig = connectionString
+  ? {
+      connectionString,
+      max: parseInt(process.env.PG_POOL_MAX || '20', 10),
+      min: parseInt(process.env.PG_POOL_MIN || '2', 10),
+      idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
+      connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
+      ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+    }
+  : {
+      host,
+      port,
+      user,
+      password,
+      database,
+      max: parseInt(process.env.PG_POOL_MAX || '20', 10),
+      min: parseInt(process.env.PG_POOL_MIN || '2', 10),
+      idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
+      connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
+      ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+    };
 
 export const pool = new Pool(poolConfig);
 

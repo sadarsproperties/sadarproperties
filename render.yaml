@@ -12,8 +12,16 @@ services:
       - key: NODE_ENV
         value: production
       # These variables will prompt you to enter them when importing the Blueprint
-      - key: DATABASE_URL
+      - key: PGHOST
         sync: false
+      - key: PGUSER
+        sync: false
+      - key: PGPASSWORD
+        sync: false
+      - key: PGDATABASE
+        sync: false
+      - key: PGPORT
+        value: 5432
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
