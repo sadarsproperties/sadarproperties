@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import Footer from '../components/Footer'
 import Logo from '../components/Logo'
+import { API_BASE } from '../api/client'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -28,11 +29,11 @@ export default function SignupPage() {
   }
 
   function handleGoogle() {
-    window.location.href = '/api/auth/google'
+    window.location.href = `${API_BASE}/auth/google`
   }
 
   function handleFacebook() {
-    window.location.href = '/api/auth/facebook'
+    window.location.href = `${API_BASE}/auth/facebook`
   }
 
   return (
