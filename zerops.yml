@@ -38,4 +38,3 @@ zerops:
       - dashboard/node_modules
     run:
       base: static
-`
