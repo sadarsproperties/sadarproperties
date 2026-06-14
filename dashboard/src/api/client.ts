@@ -1,6 +1,9 @@
 import type { AppData, Buyer, Investor, MatchedContact, Property, Seller } from '../types';
 
-export const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
+export const API_BASE = (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://') || rawApiUrl.startsWith('/'))
+  ? rawApiUrl
+  : `https://${rawApiUrl}`;
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
