@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { api, API_BASE } from '../api/client';
+import { API_BASE } from '../api/client';
+
+const TOKEN_KEY = 'sadar_auth_token';
 
 export interface AuthUser {
   id: string;
@@ -18,6 +20,28 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAuthToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+/** Build headers with Authorization if a token exists */
+export function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -26,13 +50,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const refreshUser = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setUser(null);
+      return;
+    }
     try {
-      const r = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+      const r = await fetch(`${API_BASE}/auth/me`, {
+        headers: authHeaders(),
+        credentials: 'include',
+      });
       if (r.ok) {
         const data = await r.json();
         setUser(data.user);
       } else {
         setUser(null);
+        clearAuthToken();
       }
     } catch {
       setUser(null);
@@ -42,6 +75,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       setLoading(true);
+
+      // Check for OAuth token in URL query params
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        setAuthToken(urlToken);
+        // Clean up the URL (remove token from address bar)
+        params.delete('token');
+        const cleanSearch = params.toString();
+        const cleanUrl = window.location.pathname + (cleanSearch ? `?${cleanSearch}` : '');
+        window.history.replaceState({}, '', cleanUrl);
+      }
+
       await refreshUser();
       setLoading(false);
     })();
@@ -62,6 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(msg || 'Login failed');
       }
       const data = await res.json();
+      // Store token if returned by server
+      if (data.token) {
+        setAuthToken(data.token);
+      }
       setUser(data.user);
     } catch (e: any) {
       setError(e.message || 'Login failed');
@@ -86,6 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(msg || 'Signup failed');
       }
       const data = await res.json();
+      if (data.token) {
+        setAuthToken(data.token);
+      }
       setUser(data.user);
     } catch (e: any) {
       setError(e.message || 'Signup failed');
@@ -99,15 +152,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
+        headers: authHeaders(),
         credentials: 'include',
       });
     } finally {
+      clearAuthToken();
       setUser(null);
     }
   };
-
-  // Patch: expose a small request helper that the pages can use if needed
-  // For /auth/me we already handled above. Other calls go through the existing api client which now sends credentials.
 
   return (
     <AuthContext.Provider value={{ user, loading, error, login, signup, logout, refreshUser }}>

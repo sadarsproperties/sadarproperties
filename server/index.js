@@ -82,7 +82,14 @@ function clearAuthCookie(res) {
 }
 
 async function getUserFromReq(req) {
-  const token = req.cookies?.[JWT_COOKIE_NAME];
+  // Support both cookie and Authorization header (Bearer token)
+  let token = req.cookies?.[JWT_COOKIE_NAME];
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
+  }
   if (!token) return null;
   try {
     const payload = jwt.verify(token, JWT_SECRET);
@@ -749,7 +756,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.status(201).json({ user });
+    res.status(201).json({ user, token });
   } catch (e) {
     console.error('Register error:', e);
     res.status(500).json({ error: 'Registration failed' });
@@ -778,7 +785,7 @@ app.post('/api/auth/login', async (req, res) => {
     const user = rowToUser(userRow);
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.json({ user });
+    res.json({ user, token });
   } catch (e) {
     console.error('Login error:', e);
     res.status(500).json({ error: 'Login failed' });
@@ -845,7 +852,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.redirect(`${FRONTEND_URL}/dashboard?loggedIn=true`);
+    res.redirect(`${FRONTEND_URL}/dashboard?token=${encodeURIComponent(token)}`);
   } catch (e) {
     console.error('Google callback error:', e);
     res.redirect(`${FRONTEND_URL}/login?error=google_failed`);
@@ -898,7 +905,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.redirect(`${FRONTEND_URL}/dashboard?loggedIn=true`);
+    res.redirect(`${FRONTEND_URL}/dashboard?token=${encodeURIComponent(token)}`);
   } catch (e) {
     console.error('Facebook callback error:', e);
     res.redirect(`${FRONTEND_URL}/login?error=facebook_failed`);

@@ -1,4 +1,5 @@
 import type { AppData, Buyer, Investor, MatchedContact, Property, Seller } from '../types';
+import { getAuthToken } from '../hooks/useAuth';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
 let normalized = (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://') || rawApiUrl.startsWith('/'))
@@ -15,10 +16,19 @@ if (normalized.startsWith('http') && !normalized.endsWith('/api') && !normalized
 export const API_BASE = normalized;
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string> ?? {}),
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
-    credentials: 'include',
     ...options,
+    headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
