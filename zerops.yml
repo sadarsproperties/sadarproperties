@@ -1,0 +1,38 @@
+# Zerops deployment configuration for Sadar Properties
+# For detailed docs, visit https://docs.zerops.io
+
+zerops:
+  # 1. Node.js Backend API Service
+  - setup: api
+    build:
+      base: nodejs@20
+      buildCommands:
+        - npm install --production=false
+      deployFiles:
+        - server
+        - config.js
+        - package.json
+        - package-lock.json
+        - node_modules
+    cache:
+      - node_modules
+    run:
+      base: nodejs@20
+      start: npm run server
+      ports:
+        - port: 3001
+          httpSupport: true
+
+  # 2. React (Vite) Static Frontend Service
+  - setup: web
+    build:
+      base: nodejs@20
+      buildCommands:
+        - npm install --prefix dashboard
+        - npm run build --prefix dashboard
+      deployFiles:
+        - dashboard/dist/~
+    cache:
+      - dashboard/node_modules
+    run:
+      base: static

@@ -22,7 +22,7 @@ import {
   query,
   autoMatchProperty,
 } from './db.js';
-import { sendEmail, buildDealEmailHtml, buildDealEmailText } from './resend.js';
+import { sendEmail, buildDealEmailHtml, buildDealEmailText, sendWelcomeEmail, sendActivityNotification } from './resend.js';
 import { CONFIG } from '../config.js';
 
 // Scrapers
@@ -152,7 +152,7 @@ function buildFacebookAuthUrl(state) {
   return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
 }
 
-// ==================== AI BUY BOX EXTRACTION (OpenAI + Gemini + Playwright) ====================
+// ==================== AI BUY BOX EXTRACTION (DeepSeek + Gemini + OpenAI + Playwright) ====================
 
 async function playwrightScrape(url) {
   // Advanced scraping using Playwright (synchronized with CLI scraper configuration)
@@ -248,6 +248,54 @@ async function playwrightScrape(url) {
     let html = await resp.text();
     return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000);
   }
+}
+
+async function callDeepSeek(prompt, content) {
+  const key = process.env.DEEPSEEK_API_KEY;
+  if (!key) throw new Error('No DeepSeek key');
+
+  // DeepSeek V4 model fallback: fast flash first, then full pro
+  const models = ['deepseek-v4-flash', 'deepseek-v4-pro'];
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      console.log(`[DeepSeek] Attempting extraction with model: ${model}...`);
+      const resp = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: prompt },
+            { role: 'user', content: content.slice(0, 6000) }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.warn(`[DeepSeek] Model ${model} failed with status ${resp.status}: ${errText}`);
+        lastError = new Error(`DeepSeek API error ${resp.status}: ${errText}`);
+        continue; // Try next model
+      }
+
+      const data = await resp.json();
+      const text = data.choices?.[0]?.message?.content || '{}';
+      console.log(`[DeepSeek] Successfully extracted with model: ${model}`);
+      return JSON.parse(text);
+    } catch (e) {
+      console.warn(`[DeepSeek] Call to ${model} threw error: ${e.message}`);
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error('All DeepSeek models failed');
 }
 
 async function callGemini(prompt, content) {
@@ -377,11 +425,18 @@ Be accurate and conservative.`;
 - maxBudget: ${inferred.budget || 'null'}`;
   }
 
-  // Try Gemini first (new)
+  // Try DeepSeek V4 first (default)
+  if (process.env.DEEPSEEK_API_KEY) {
+    try {
+      return normalizeBuyBox(await callDeepSeek(systemPrompt, content), inferred);
+    } catch (e) { console.warn('DeepSeek failed, falling back to Gemini:', e.message); }
+  }
+
+  // Fallback to Gemini
   if (process.env.GEMINI_API_KEY) {
     try {
       return normalizeBuyBox(await callGemini(systemPrompt, content), inferred);
-    } catch (e) { console.warn('Gemini failed:', e.message); }
+    } catch (e) { console.warn('Gemini failed, falling back to OpenAI/Grok:', e.message); }
   }
 
   const apiKey = process.env.OPENAI_API_KEY || process.env.GROK_API_KEY || process.env.XAI_API_KEY;
@@ -604,6 +659,59 @@ app.post('/api/support', async (req, res) => {
 });
 
 
+async function handleResourceNotification(user, path, action, data) {
+  const resourceSingular = path.replace(/s$/, '').replace(/ies$/, 'y'); // e.g. sellers -> seller, properties -> property
+  const resourceName = resourceSingular.charAt(0).toUpperCase() + resourceSingular.slice(1);
+  const actionName = action.charAt(0).toUpperCase() + action.slice(1);
+
+  let detailsHtml = '';
+  let detailsText = '';
+
+  if (action === 'deleted') {
+    detailsHtml = `<p>The following ${resourceSingular} was deleted from your system:</p>
+                   <p><strong>ID:</strong> ${data.id || 'N/A'}</p>`;
+    detailsText = `The following ${resourceSingular} was deleted:\nID: ${data.id || 'N/A'}`;
+  } else if (action === 'bulk_imported') {
+    const count = Array.isArray(data) ? data.length : 0;
+    detailsHtml = `<p>Bulk imported <strong>${count}</strong> ${path}.</p>`;
+    detailsText = `Bulk imported ${count} ${path}.`;
+  } else {
+    // added or updated
+    detailsHtml = `<p>A ${resourceSingular} has been ${action}:</p>
+                   <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">`;
+    detailsText = `A ${resourceSingular} has been ${action}:\n`;
+
+    const keysToExclude = ['id', 'createdAt', 'updatedAt', 'sellerId', 'topMatches'];
+    for (const [key, val] of Object.entries(data)) {
+      if (keysToExclude.includes(key)) continue;
+      
+      let displayVal = val;
+      if (typeof val === 'object' && val !== null) {
+        displayVal = JSON.stringify(val);
+      }
+      
+      const cleanKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      
+      detailsHtml += `<tr style="border-bottom: 1px solid #E5E7EB;">
+                        <td style="font-weight: bold; width: 140px; color: #4B5563; padding: 6px 0;">${cleanKey}</td>
+                        <td style="color: #111827; padding: 6px 0;">${displayVal !== null && displayVal !== undefined ? displayVal : 'N/A'}</td>
+                      </tr>`;
+      detailsText += `- ${cleanKey}: ${displayVal !== null && displayVal !== undefined ? displayVal : 'N/A'}\n`;
+    }
+    detailsHtml += `</table>`;
+  }
+
+  const activityName = `${actionName} ${resourceName}`;
+  await sendActivityNotification({
+    userEmail: user.email,
+    userName: user.name,
+    activityName,
+    detailsHtml,
+    detailsText
+  });
+}
+
+
 // ==================== LOCAL AUTH ====================
 
 app.post('/api/auth/register', async (req, res) => {
@@ -615,18 +723,25 @@ app.post('/api/auth/register', async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    const existing = getUserByEmail(email);
+    const existing = await getUserByEmail(email);
     if (existing) {
       return res.status(409).json({ error: 'An account with this email already exists' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = createUser({
+    const user = await createUser({
       id: randomUUID(),
       email,
       passwordHash,
       name: name.trim(),
     });
+
+    // Send Welcome Email
+    try {
+      await sendWelcomeEmail(user.email, user.name);
+    } catch (err) {
+      console.error('Welcome email failed:', err);
+    }
 
     const token = signToken(user);
     setAuthCookie(res, token);
@@ -716,6 +831,12 @@ app.get('/api/auth/google/callback', async (req, res) => {
         avatarUrl: profile.picture || '',
         googleId: profile.sub,
       });
+      // Send Welcome Email
+      try {
+        await sendWelcomeEmail(user.email, user.name);
+      } catch (err) {
+        console.error('Google OAuth Welcome email failed:', err);
+      }
     }
 
     const token = signToken(user);
@@ -763,6 +884,12 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
         avatarUrl: avatar,
         facebookId: profile.id,
       });
+      // Send Welcome Email
+      try {
+        await sendWelcomeEmail(user.email, user.name);
+      } catch (err) {
+        console.error('Facebook OAuth Welcome email failed:', err);
+      }
     }
 
     const token = signToken(user);
@@ -780,7 +907,13 @@ function mountResource(path, resource) {
     res.json(await resource.list());
   });
   app.post(`/api/${path}`, requireAuth, async (req, res) => {
-    res.status(201).json(await resource.insert(req.body));
+    const inserted = await resource.insert(req.body);
+    try {
+      await handleResourceNotification(req.user, path, 'added', inserted);
+    } catch (err) {
+      console.error(`[Notification Error] Failed for POST /api/${path}:`, err.message);
+    }
+    res.status(201).json(inserted);
   });
   app.post(`/api/${path}/bulk`, requireAuth, async (req, res) => {
     const items = Array.isArray(req.body) ? req.body : [];
@@ -788,16 +921,31 @@ function mountResource(path, resource) {
     for (const item of items) {
       created.push(await resource.insert(item));
     }
+    try {
+      await handleResourceNotification(req.user, path, 'bulk_imported', created);
+    } catch (err) {
+      console.error(`[Notification Error] Failed for POST /api/${path}/bulk:`, err.message);
+    }
     res.status(201).json(created);
   });
   app.put(`/api/${path}/:id`, requireAuth, async (req, res) => {
     const updated = await resource.update(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Not found' });
+    try {
+      await handleResourceNotification(req.user, path, 'updated', updated);
+    } catch (err) {
+      console.error(`[Notification Error] Failed for PUT /api/${path}/${req.params.id}:`, err.message);
+    }
     res.json(updated);
   });
   app.delete(`/api/${path}/:id`, requireAuth, async (req, res) => {
     const ok = await resource.remove(req.params.id);
     if (!ok) return res.status(404).json({ error: 'Not found' });
+    try {
+      await handleResourceNotification(req.user, path, 'deleted', { id: req.params.id });
+    } catch (err) {
+      console.error(`[Notification Error] Failed for DELETE /api/${path}/${req.params.id}:`, err.message);
+    }
     res.json({ ok: true });
   });
 }
@@ -812,6 +960,31 @@ mountResource('properties', properties);
 app.post('/api/properties/:id/auto-match', requireAuth, async (req, res) => {
   const result = await autoMatchProperty(req.params.id);
   if (!result) return res.status(404).json({ error: 'Property not found' });
+
+  // Notify activity
+  try {
+    const { property, matches, dealScore } = result;
+    const matchNames = matches.map(m => `${m.name} (${m.type})`).join(', ');
+    const detailsHtml = `
+      <p>Automated matching was executed for property:</p>
+      <p><strong>Address:</strong> ${property.address}</p>
+      <p><strong>Deal Score:</strong> ${dealScore ?? 'N/A'}/100</p>
+      <p><strong>Matches Found:</strong> ${matches.length}</p>
+      ${matches.length > 0 ? `<p><strong>Matched Contacts:</strong> ${matchNames}</p>` : ''}
+    `;
+    const detailsText = `Automated matching was executed for property:\nAddress: ${property.address}\nDeal Score: ${dealScore ?? 'N/A'}/100\nMatches Found: ${matches.length}${matches.length > 0 ? `\nMatched Contacts: ${matchNames}` : ''}`;
+    
+    await sendActivityNotification({
+      userEmail: req.user.email,
+      userName: req.user.name,
+      activityName: 'Property Auto-Match Run',
+      detailsHtml,
+      detailsText
+    });
+  } catch (err) {
+    console.error('[Notification Error] Failed for property auto-match:', err.message);
+  }
+
   res.json(result);
 });
 
@@ -860,6 +1033,37 @@ app.post('/api/properties/:id/notify', requireAuth, async (req, res) => {
       status: prop?.status === 'matched' ? 'offer_sent' : prop?.status,
     });
 
+    // Notify activity
+    try {
+      const campaignHtml = `
+        <p>A wholesale deal outreach campaign was completed for property:</p>
+        <p><strong>Property:</strong> ${prop.address}</p>
+        <p><strong>Successfully Emailed:</strong> ${log.length} contact(s)</p>
+        ${log.length > 0 ? `
+          <ul>
+            ${log.map(l => `<li><strong>${l.to}</strong> (${l.email}) at ${l.at}</li>`).join('')}
+          </ul>
+        ` : ''}
+        ${errors.length > 0 ? `
+          <p style="color: #EF4444;"><strong>Failed Deliveries (${errors.length}):</strong></p>
+          <ul>
+            ${errors.map(e => `<li><strong>${e.name}</strong> (${e.email || 'no email'}): ${e.reason}</li>`).join('')}
+          </ul>
+        ` : ''}
+      `;
+      const campaignText = `Wholesale deal outreach campaign completed for property:\nProperty: ${prop.address}\nSuccessfully Emailed: ${log.length} contacts\n${log.length > 0 ? log.map(l => `- ${l.to} (${l.email})`).join('\n') : ''}\n${errors.length > 0 ? `Errors:\n` + errors.map(e => `- ${e.name}: ${e.reason}`).join('\n') : ''}`;
+
+      await sendActivityNotification({
+        userEmail: req.user.email,
+        userName: req.user.name,
+        activityName: 'Wholesale Deal Campaign Sent',
+        detailsHtml: campaignHtml,
+        detailsText: campaignText
+      });
+    } catch (err) {
+      console.error('[Notification Error] Failed for campaign notification:', err.message);
+    }
+
     res.json({ sent: log.length, log, errors: errors.length ? errors : undefined });
   } catch (e) {
     console.error('[Notify] Error:', e);
@@ -880,6 +1084,73 @@ app.post('/api/ai/extract-buybox', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Provide text or url' });
       }
       result = await extractBuyBox(text, false);
+    }
+
+    // Notify activity
+    try {
+      const extractHtml = `
+        <p>AI extraction completed successfully from ${url ? `URL: <a href="${url}">${url}</a>` : 'provided text'}.</p>
+        <h3 style="color:#1A3C34; border-bottom:1px solid #E5E7EB; padding-bottom:4px; margin-top:16px;">Extracted Lead Information:</h3>
+        <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; width: 160px; color: #4B5563;">Full Name</td>
+            <td style="color: #111827;">${result.fullName || 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Company Name</td>
+            <td style="color: #111827;">${result.companyName || 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Phone</td>
+            <td style="color: #111827;">${result.phone || 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Email</td>
+            <td style="color: #111827;">${result.email || 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Preferred States</td>
+            <td style="color: #111827;">${Array.isArray(result.preferredStates) ? result.preferredStates.join(', ') : 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Preferred Cities</td>
+            <td style="color: #111827;">${Array.isArray(result.preferredCities) ? result.preferredCities.join(', ') : 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Property Types</td>
+            <td style="color: #111827;">${Array.isArray(result.desiredPropertyTypes) ? result.desiredPropertyTypes.join(', ') : 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Max Budget</td>
+            <td style="color: #111827;">${result.maxBudget ? '$' + Number(result.maxBudget).toLocaleString() : 'N/A'}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="font-weight: bold; color: #4B5563;">Notes</td>
+            <td style="color: #111827;">${result.notes || 'N/A'}</td>
+          </tr>
+        </table>
+      `;
+      const extractText = `AI extraction completed successfully.
+Extracted Lead Information:
+- Full Name: ${result.fullName || 'N/A'}
+- Company Name: ${result.companyName || 'N/A'}
+- Phone: ${result.phone || 'N/A'}
+- Email: ${result.email || 'N/A'}
+- Preferred States: ${Array.isArray(result.preferredStates) ? result.preferredStates.join(', ') : 'N/A'}
+- Preferred Cities: ${Array.isArray(result.preferredCities) ? result.preferredCities.join(', ') : 'N/A'}
+- Property Types: ${Array.isArray(result.desiredPropertyTypes) ? result.desiredPropertyTypes.join(', ') : 'N/A'}
+- Max Budget: ${result.maxBudget ? '$' + Number(result.maxBudget).toLocaleString() : 'N/A'}
+- Notes: ${result.notes || 'N/A'}`;
+
+      await sendActivityNotification({
+        userEmail: req.user.email,
+        userName: req.user.name,
+        activityName: 'AI Lead Buy Box Extraction',
+        detailsHtml: extractHtml,
+        detailsText: extractText
+      });
+    } catch (err) {
+      console.error('[Notification Error] Failed for AI extraction notification:', err.message);
     }
 
     res.json(result);
