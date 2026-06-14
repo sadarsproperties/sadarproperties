@@ -27,8 +27,9 @@ services:
         sync: false
 
   # 2. React (Vite) Static Frontend (Static Site)
-  - type: static
+  - type: web
     name: sadarproperties-web
+    runtime: static
     buildCommand: npm install --prefix dashboard && npm run build --prefix dashboard
     staticPublishPath: dashboard/dist
     envVars:
