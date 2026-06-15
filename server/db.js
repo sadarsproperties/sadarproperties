@@ -66,11 +66,25 @@ export async function initDb() {
       company_name TEXT DEFAULT '',
       phone TEXT DEFAULT '',
       email TEXT DEFAULT '',
+      website TEXT DEFAULT '',
       buyer_type TEXT NOT NULL,
       preferred_states JSONB DEFAULT '[]',
       preferred_cities JSONB DEFAULT '[]',
       desired_property_types JSONB DEFAULT '[]',
       max_budget DOUBLE PRECISION,
+      min_units INTEGER DEFAULT 0,
+      max_units INTEGER DEFAULT 0,
+      budget_min DOUBLE PRECISION DEFAULT 0,
+      budget_max DOUBLE PRECISION DEFAULT 0,
+      investment_strategy TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      last_contact TEXT,
+      deals_closed INTEGER DEFAULT 0,
+      zillow_url TEXT DEFAULT '',
+      redfin_url TEXT DEFAULT '',
+      realtor_url TEXT DEFAULT '',
+      propstream_url TEXT DEFAULT '',
+      batchleads_url TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -82,6 +96,26 @@ export async function initDb() {
       phone TEXT DEFAULT '',
       email TEXT DEFAULT '',
       linkedin_url TEXT DEFAULT '',
+      biggerpockets_url TEXT DEFAULT '',
+      facebook_url TEXT DEFAULT '',
+      twitter_url TEXT DEFAULT '',
+      instagram_url TEXT DEFAULT '',
+      zillow_url TEXT DEFAULT '',
+      redfin_url TEXT DEFAULT '',
+      realtor_url TEXT DEFAULT '',
+      propstream_url TEXT DEFAULT '',
+      batchleads_url TEXT DEFAULT '',
+      connected_investors_url TEXT DEFAULT '',
+      loopnet_url TEXT DEFAULT '',
+      crexi_url TEXT DEFAULT '',
+      source_platform TEXT DEFAULT '',
+      buy_box_raw TEXT DEFAULT '',
+      unit_range_min INTEGER DEFAULT 0,
+      unit_range_max INTEGER DEFAULT 0,
+      budget_min DOUBLE PRECISION DEFAULT 0,
+      budget_max DOUBLE PRECISION DEFAULT 0,
+      investment_strategy TEXT DEFAULT '',
+      ai_extracted BOOLEAN DEFAULT FALSE,
       preferred_states JSONB DEFAULT '[]',
       preferred_cities JSONB DEFAULT '[]',
       desired_property_types JSONB DEFAULT '[]',
@@ -96,9 +130,11 @@ export async function initDb() {
       city TEXT DEFAULT '',
       state TEXT DEFAULT '',
       zip TEXT DEFAULT '',
+      zip_code TEXT DEFAULT '',
       property_type TEXT NOT NULL,
       lead_categories JSONB DEFAULT '[]',
       price DOUBLE PRECISION NOT NULL DEFAULT 0,
+      asking_price DOUBLE PRECISION NOT NULL DEFAULT 0,
       arv DOUBLE PRECISION,
       repair_costs DOUBLE PRECISION,
       assignment_fee DOUBLE PRECISION NOT NULL DEFAULT 10000,
@@ -108,13 +144,98 @@ export async function initDb() {
       updated_at TEXT NOT NULL,
       status TEXT DEFAULT 'new',
       top_matches JSONB DEFAULT '[]',
-      deal_score DOUBLE PRECISION
+      deal_score DOUBLE PRECISION,
+      bedrooms INTEGER,
+      bathrooms DOUBLE PRECISION,
+      sqft INTEGER,
+      lot_size DOUBLE PRECISION,
+      year_built INTEGER,
+      source TEXT DEFAULT 'Manual',
+      source_url TEXT DEFAULT '',
+      zillow_url TEXT DEFAULT '',
+      redfin_url TEXT DEFAULT '',
+      realtor_url TEXT DEFAULT '',
+      propstream_url TEXT DEFAULT '',
+      batchleads_url TEXT DEFAULT '',
+      units INTEGER DEFAULT 1
     );
 
     -- Add columns for existing databases (idempotent)
     ALTER TABLE properties ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'new';
     ALTER TABLE properties ADD COLUMN IF NOT EXISTS top_matches JSONB DEFAULT '[]';
     ALTER TABLE properties ADD COLUMN IF NOT EXISTS deal_score DOUBLE PRECISION;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS zip_code TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS asking_price DOUBLE PRECISION DEFAULT 0;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS bedrooms INTEGER;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS bathrooms DOUBLE PRECISION;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS sqft INTEGER;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS lot_size DOUBLE PRECISION;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_built INTEGER;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'Manual';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS source_url TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS zillow_url TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS redfin_url TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS realtor_url TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS propstream_url TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS batchleads_url TEXT DEFAULT '';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS units INTEGER DEFAULT 1;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS last_contact_date TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS follow_up_date TEXT;
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS assigned_buyer_id TEXT;
+
+    -- Add columns for sellers table (idempotent, placed after properties table exists)
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS property_id TEXT REFERENCES properties(id) ON DELETE SET NULL;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS phone_numbers JSONB DEFAULT '[]';
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS email_addresses JSONB DEFAULT '[]';
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS ownership_years INTEGER;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS equity_estimate DOUBLE PRECISION;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS ownership_type TEXT DEFAULT 'Individual';
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS entity_name TEXT DEFAULT '';
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS skip_traced BOOLEAN DEFAULT FALSE;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS last_contact_date TEXT;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS contact_notes TEXT DEFAULT '';
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
+
+    -- Add columns for buyers table (idempotent)
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS website TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS min_units INTEGER DEFAULT 0;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS max_units INTEGER DEFAULT 0;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS budget_min DOUBLE PRECISION DEFAULT 0;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS budget_max DOUBLE PRECISION DEFAULT 0;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS investment_strategy TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS last_contact TEXT;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS deals_closed INTEGER DEFAULT 0;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS zillow_url TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS redfin_url TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS realtor_url TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS propstream_url TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS batchleads_url TEXT DEFAULT '';
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
+
+    -- Add columns for investors table (idempotent)
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS biggerpockets_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS facebook_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS twitter_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS instagram_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS zillow_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS redfin_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS realtor_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS propstream_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS batchleads_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS connected_investors_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS loopnet_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS crexi_url TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS source_platform TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS buy_box_raw TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS unit_range_min INTEGER DEFAULT 0;
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS unit_range_max INTEGER DEFAULT 0;
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS budget_min DOUBLE PRECISION DEFAULT 0;
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS budget_max DOUBLE PRECISION DEFAULT 0;
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS investment_strategy TEXT DEFAULT '';
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS ai_extracted BOOLEAN DEFAULT FALSE;
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
 
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -133,14 +254,29 @@ export async function initDb() {
 // ==================== ROW MAPPERS ====================
 
 export function rowToSeller(row) {
+  if (!row) return null;
+  const phoneNumbers = Array.isArray(row.phone_numbers) ? row.phone_numbers : (row.phone ? [row.phone] : []);
+  const emailAddresses = Array.isArray(row.email_addresses) ? row.email_addresses : (row.email ? [row.email] : []);
+
   return {
     id: row.id,
     ownerName: row.owner_name,
-    phone: row.phone,
-    email: row.email,
-    mailingAddress: row.mailing_address,
+    phone: row.phone || (phoneNumbers[0] || ''),
+    email: row.email || (emailAddresses[0] || ''),
+    mailingAddress: row.mailing_address || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    propertyId: row.property_id || null,
+    phoneNumbers,
+    emailAddresses,
+    ownershipYears: row.ownership_years != null ? Number(row.ownership_years) : null,
+    equityEstimate: row.equity_estimate != null ? Number(row.equity_estimate) : null,
+    ownershipType: row.ownership_type || 'Individual',
+    entityName: row.entity_name || '',
+    skipTraced: !!row.skip_traced,
+    lastContactDate: row.last_contact_date || null,
+    contactNotes: row.contact_notes || '',
+    notesList: row.notes_list || [],
   };
 }
 
@@ -151,6 +287,7 @@ export function rowToBuyer(row) {
     companyName: row.company_name,
     phone: row.phone,
     email: row.email,
+    website: row.website || '',
     buyerType: row.buyer_type,
     buyBox: {
       preferredStates: row.preferred_states || [],
@@ -158,8 +295,22 @@ export function rowToBuyer(row) {
       desiredPropertyTypes: row.desired_property_types || [],
       maxBudget: row.max_budget,
     },
+    minUnits: row.min_units != null ? Number(row.min_units) : null,
+    maxUnits: row.max_units != null ? Number(row.max_units) : null,
+    budgetMin: row.budget_min != null ? Number(row.budget_min) : null,
+    budgetMax: row.budget_max != null ? Number(row.budget_max) : null,
+    investmentStrategy: row.investment_strategy || '',
+    notes: row.notes || '',
+    lastContact: row.last_contact || null,
+    dealsClosed: row.deals_closed != null ? Number(row.deals_closed) : 0,
+    zillowUrl: row.zillow_url || '',
+    redfinUrl: row.redfin_url || '',
+    realtorUrl: row.realtor_url || '',
+    propstreamUrl: row.propstream_url || '',
+    batchleadsUrl: row.batchleads_url || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    notesList: row.notes_list || [],
   };
 }
 
@@ -171,6 +322,26 @@ export function rowToInvestor(row) {
     phone: row.phone,
     email: row.email,
     linkedInUrl: row.linkedin_url,
+    biggerPocketsUrl: row.biggerpockets_url || '',
+    facebookUrl: row.facebook_url || '',
+    twitterUrl: row.twitter_url || '',
+    instagramUrl: row.instagram_url || '',
+    zillowUrl: row.zillow_url || '',
+    redfinUrl: row.redfin_url || '',
+    realtorUrl: row.realtor_url || '',
+    propstreamUrl: row.propstream_url || '',
+    batchleadsUrl: row.batchleads_url || '',
+    connectedInvestorsUrl: row.connected_investors_url || '',
+    loopnetUrl: row.loopnet_url || '',
+    crexiUrl: row.crexi_url || '',
+    sourcePlatform: row.source_platform || '',
+    buyBoxRaw: row.buy_box_raw || '',
+    unitRangeMin: row.unit_range_min != null ? Number(row.unit_range_min) : null,
+    unitRangeMax: row.unit_range_max != null ? Number(row.unit_range_max) : null,
+    budgetMin: row.budget_min != null ? Number(row.budget_min) : null,
+    budgetMax: row.budget_max != null ? Number(row.budget_max) : null,
+    investmentStrategy: row.investment_strategy || '',
+    aiExtracted: !!row.ai_extracted,
     buyBox: {
       preferredStates: row.preferred_states || [],
       preferredCities: row.preferred_cities || [],
@@ -179,6 +350,7 @@ export function rowToInvestor(row) {
     },
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    notesList: row.notes_list || [],
   };
 }
 
@@ -188,10 +360,12 @@ export function rowToProperty(row) {
     address: row.address,
     city: row.city,
     state: row.state,
-    zip: row.zip,
+    zip: row.zip || row.zip_code,
+    zipCode: row.zip_code || row.zip,
     propertyType: row.property_type,
     leadCategories: row.lead_categories || [],
-    price: row.price,
+    price: row.price || row.asking_price || 0,
+    askingPrice: row.asking_price || row.price || 0,
     arv: row.arv,
     repairCosts: row.repair_costs,
     assignmentFee: row.assignment_fee,
@@ -202,6 +376,25 @@ export function rowToProperty(row) {
     status: row.status || 'new',
     topMatches: row.top_matches || [],
     dealScore: row.deal_score || null,
+    bedrooms: row.bedrooms != null ? Number(row.bedrooms) : null,
+    bathrooms: row.bathrooms != null ? Number(row.bathrooms) : null,
+    sqft: row.sqft != null ? Number(row.sqft) : null,
+    lotSize: row.lot_size != null ? Number(row.lot_size) : null,
+    yearBuilt: row.year_built != null ? Number(row.year_built) : null,
+    units: row.units != null ? Number(row.units) : 1,
+    source: row.source || 'Manual',
+    sourceUrl: row.source_url || '',
+    zillowUrl: row.zillow_url || '',
+    redfinUrl: row.redfin_url || '',
+    realtorUrl: row.realtor_url || '',
+    propstreamUrl: row.propstream_url || '',
+    batchleadsUrl: row.batchleads_url || '',
+    lastContactDate: row.last_contact_date || '',
+    followUpDate: row.follow_up_date || '',
+    notesList: row.notes_list || [],
+    assignedBuyerId: row.assigned_buyer_id || null,
+    dateAdded: row.created_at,
+    lastUpdated: row.updated_at,
   };
 }
 
@@ -318,7 +511,7 @@ function createCrud(table, mapRow, mapBodyToDb) {
       if (!existing) return null;
 
       const updatedAt = new Date().toISOString();
-      const values = mapBodyToDb({ ...payload, id, createdAt: existing.createdAt, updatedAt });
+      const values = mapBodyToDb({ ...existing, ...payload, id, createdAt: existing.createdAt, updatedAt });
 
       const assignments = Object.keys(values)
         .filter((key) => key !== 'id')
@@ -344,67 +537,205 @@ function createCrud(table, mapRow, mapBodyToDb) {
 const sellers = createCrud(
   'sellers',
   rowToSeller,
-  ({ id, ownerName, phone, email, mailingAddress, createdAt, updatedAt }) => ({
+  ({
     id,
-    owner_name: ownerName ?? '',
-    phone: phone ?? '',
-    email: email ?? '',
-    mailing_address: mailingAddress ?? '',
-    created_at: createdAt,
-    updated_at: updatedAt,
-  })
+    ownerName,
+    phone,
+    email,
+    mailingAddress,
+    createdAt,
+    updatedAt,
+    propertyId,
+    phoneNumbers,
+    emailAddresses,
+    ownershipYears,
+    equityEstimate,
+    ownershipType,
+    entityName,
+    skipTraced,
+    lastContactDate,
+    contactNotes,
+    notesList,
+  }) => {
+    const pNumbers = Array.isArray(phoneNumbers) ? phoneNumbers : (phone ? [phone] : []);
+    const eAddresses = Array.isArray(emailAddresses) ? emailAddresses : (email ? [email] : []);
+    return {
+      id,
+      owner_name: ownerName ?? '',
+      phone: phone ?? (pNumbers[0] ?? ''),
+      email: email ?? (eAddresses[0] ?? ''),
+      mailing_address: mailingAddress ?? '',
+      created_at: createdAt,
+      updated_at: updatedAt,
+      property_id: propertyId ?? null,
+      phone_numbers: pNumbers,
+      email_addresses: eAddresses,
+      ownership_years: ownershipYears != null ? Number(ownershipYears) : null,
+      equity_estimate: equityEstimate != null ? Number(equityEstimate) : null,
+      ownership_type: ownershipType ?? 'Individual',
+      entity_name: entityName ?? '',
+      skip_traced: skipTraced === true || skipTraced === 'true',
+      last_contact_date: lastContactDate ?? null,
+      contact_notes: contactNotes ?? '',
+      notes_list: notesList ?? [],
+    };
+  }
 );
 
-const buyers = createCrud(
+const buyersBase = createCrud(
   'buyers',
   rowToBuyer,
-  ({ id, fullName, companyName, phone, email, buyerType, buyBox, createdAt, updatedAt }) => ({
+  ({
+    id,
+    fullName,
+    companyName,
+    phone,
+    email,
+    website,
+    buyerType,
+    buyBox,
+    minUnits,
+    maxUnits,
+    budgetMin,
+    budgetMax,
+    investmentStrategy,
+    notes,
+    lastContact,
+    dealsClosed,
+    zillowUrl,
+    redfinUrl,
+    realtorUrl,
+    propstreamUrl,
+    batchleadsUrl,
+    createdAt,
+    updatedAt,
+    notesList,
+  }) => ({
     id,
     full_name: fullName ?? '',
     company_name: companyName ?? '',
     phone: phone ?? '',
     email: email ?? '',
+    website: website ?? '',
     buyer_type: buyerType ?? 'Cash Buyer',
     preferred_states: buyBox?.preferredStates ?? [],
     preferred_cities: buyBox?.preferredCities ?? [],
     desired_property_types: buyBox?.desiredPropertyTypes ?? [],
     max_budget: buyBox?.maxBudget ?? null,
+    min_units: minUnits ?? null,
+    max_units: maxUnits ?? null,
+    budget_min: budgetMin ?? null,
+    budget_max: budgetMax ?? null,
+    investment_strategy: investmentStrategy ?? '',
+    notes: notes ?? '',
+    last_contact: lastContact ?? null,
+    deals_closed: dealsClosed ?? 0,
+    zillow_url: zillowUrl ?? '',
+    redfin_url: redfinUrl ?? '',
+    realtor_url: realtorUrl ?? '',
+    propstream_url: propstreamUrl ?? '',
+    batchleads_url: batchleadsUrl ?? '',
     created_at: createdAt,
     updated_at: updatedAt,
+    notes_list: notesList ?? [],
   })
 );
 
-const investors = createCrud(
+const buyers = {
+  ...buyersBase,
+  async insert(payload) {
+    const res = await buyersBase.insert(payload);
+    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    return res;
+  },
+  async update(id, payload) {
+    const res = await buyersBase.update(id, payload);
+    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    return res;
+  }
+};
+
+const investorsBase = createCrud(
   'investors',
   rowToInvestor,
-  ({ id, investorName, companyName, phone, email, linkedInUrl, buyBox, createdAt, updatedAt }) => ({
+  ({
+    id, investorName, companyName, phone, email, linkedInUrl, biggerPocketsUrl,
+    facebookUrl, twitterUrl, instagramUrl, zillowUrl, redfinUrl, realtorUrl,
+    propstreamUrl, batchleadsUrl, connectedInvestorsUrl, loopnetUrl, crexiUrl,
+    sourcePlatform, buyBoxRaw, unitRangeMin, unitRangeMax, budgetMin, budgetMax,
+    investmentStrategy, aiExtracted, buyBox, createdAt, updatedAt, notesList
+  }) => ({
     id,
     investor_name: investorName ?? '',
     company_name: companyName ?? '',
     phone: phone ?? '',
     email: email ?? '',
     linkedin_url: linkedInUrl ?? '',
+    biggerpockets_url: biggerPocketsUrl ?? '',
+    facebook_url: facebookUrl ?? '',
+    twitter_url: twitterUrl ?? '',
+    instagram_url: instagramUrl ?? '',
+    zillow_url: zillowUrl ?? '',
+    redfin_url: redfinUrl ?? '',
+    realtor_url: realtorUrl ?? '',
+    propstream_url: propstreamUrl ?? '',
+    batchleads_url: batchleadsUrl ?? '',
+    connected_investors_url: connectedInvestorsUrl ?? '',
+    loopnet_url: loopnetUrl ?? '',
+    crexi_url: crexiUrl ?? '',
+    source_platform: sourcePlatform ?? '',
+    buy_box_raw: buyBoxRaw ?? '',
+    unit_range_min: unitRangeMin ?? null,
+    unit_range_max: unitRangeMax ?? null,
+    budget_min: budgetMin ?? null,
+    budget_max: budgetMax ?? null,
+    investment_strategy: investmentStrategy ?? '',
+    ai_extracted: aiExtracted === true || aiExtracted === 'true',
     preferred_states: buyBox?.preferredStates ?? [],
     preferred_cities: buyBox?.preferredCities ?? [],
     desired_property_types: buyBox?.desiredPropertyTypes ?? [],
     max_budget: buyBox?.maxBudget ?? null,
     created_at: createdAt,
     updated_at: updatedAt,
+    notes_list: notesList ?? [],
   })
 );
 
-const properties = createCrud(
+const investors = {
+  ...investorsBase,
+  async insert(payload) {
+    const res = await investorsBase.insert(payload);
+    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    return res;
+  },
+  async update(id, payload) {
+    const res = await investorsBase.update(id, payload);
+    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    return res;
+  }
+};
+
+const propertiesBase = createCrud(
   'properties',
   rowToProperty,
-  ({ id, address, city, state, zip, propertyType, leadCategories, price, arv, repairCosts, assignmentFee, sellerId, notes, createdAt, updatedAt, status, topMatches, dealScore }) => ({
+  ({
+    id, address, city, state, zip, zipCode, propertyType, leadCategories,
+    price, askingPrice, arv, repairCosts, assignmentFee, sellerId, notes,
+    createdAt, updatedAt, status, topMatches, dealScore,
+    bedrooms, bathrooms, sqft, lotSize, yearBuilt, source, sourceUrl,
+    zillowUrl, redfinUrl, realtorUrl, propstreamUrl, batchleadsUrl, units,
+    lastContactDate, followUpDate, notesList, assignedBuyerId
+  }) => ({
     id,
     address: address ?? '',
     city: city ?? '',
     state: state ?? '',
-    zip: zip ?? '',
+    zip: zip ?? zipCode ?? '',
+    zip_code: zipCode ?? zip ?? '',
     property_type: propertyType ?? 'Single Family',
     lead_categories: leadCategories ?? [],
-    price: Number(price) || 0,
+    price: Number(price || askingPrice) || 0,
+    asking_price: Number(askingPrice || price) || 0,
     arv: arv ?? null,
     repair_costs: repairCosts ?? null,
     assignment_fee: assignmentFee ?? 10000,
@@ -415,8 +746,74 @@ const properties = createCrud(
     status: status ?? 'new',
     top_matches: topMatches ?? [],
     deal_score: dealScore ?? null,
+    bedrooms: bedrooms != null ? Number(bedrooms) : null,
+    bathrooms: bathrooms != null ? Number(bathrooms) : null,
+    sqft: sqft != null ? Number(sqft) : null,
+    lot_size: lotSize != null ? Number(lotSize) : null,
+    year_built: yearBuilt != null ? Number(yearBuilt) : null,
+    source: source ?? 'Manual',
+    source_url: sourceUrl ?? '',
+    zillow_url: zillowUrl ?? '',
+    redfin_url: redfinUrl ?? '',
+    realtor_url: realtorUrl ?? '',
+    propstream_url: propstreamUrl ?? '',
+    batchleads_url: batchleadsUrl ?? '',
+    units: units != null ? Number(units) : 1,
+    last_contact_date: lastContactDate ?? '',
+    follow_up_date: followUpDate ?? '',
+    notes_list: notesList ?? [],
+    assigned_buyer_id: assignedBuyerId ?? null,
   })
 );
+
+const properties = {
+  ...propertiesBase,
+  async insert(payload) {
+    // 1. Compute deal score
+    const score = payload.dealScore !== undefined && payload.dealScore !== null
+      ? payload.dealScore
+      : await computeDealScore(payload);
+    
+    // 2. Find matches
+    const tempProperty = {
+      propertyType: payload.propertyType || 'Single Family',
+      price: Number(payload.price || payload.askingPrice || 0),
+      state: payload.state || '',
+      city: payload.city || '',
+      units: payload.units != null ? Number(payload.units) : 1,
+    };
+    const matches = await findMatchesForProperty(tempProperty);
+
+    // 3. Insert into database
+    return propertiesBase.insert({
+      ...payload,
+      dealScore: score,
+      topMatches: matches,
+      status: payload.status || (matches.length > 0 ? 'matched' : 'new'),
+    });
+  },
+  async update(id, payload) {
+    const existing = await this.get(id);
+    if (!existing) return null;
+
+    // Merge existing and updates
+    const merged = { ...existing, ...payload };
+
+    // Compute deal score
+    const score = payload.dealScore !== undefined && payload.dealScore !== null
+      ? payload.dealScore
+      : await computeDealScore(merged);
+
+    // Re-find matches
+    const matches = await findMatchesForProperty(merged);
+
+    return propertiesBase.update(id, {
+      ...payload,
+      dealScore: score,
+      topMatches: matches,
+    });
+  }
+};
 
 // Export the resources so server/index.js can mount them easily
 export { sellers, buyers, investors, properties };
@@ -446,14 +843,118 @@ export async function getAllData() {
   };
 }
 
-// ==================== SERVER-SIDE MATCHING & SCORING ====================
+function serverCalculateMatchScore(property, buyerOrInvestor) {
+  const buyBox = buyerOrInvestor.buyBox || {};
+  const preferredStates = buyBox.preferredStates || [];
+  const propertyState = (property.state || '').trim().toUpperCase();
 
-function serverMatchesBuyBox(property, buyBox) {
-  if (buyBox.maxBudget != null && property.price > buyBox.maxBudget) return false;
-  if (buyBox.preferredStates?.length && !buyBox.preferredStates.some(s => s.toLowerCase() === (property.state || '').toLowerCase())) return false;
-  if (buyBox.preferredCities?.length && !buyBox.preferredCities.some(c => c.toLowerCase() === (property.city || '').toLowerCase())) return false;
-  if (buyBox.desiredPropertyTypes?.length && !buyBox.desiredPropertyTypes.includes(property.propertyType)) return false;
-  return true;
+  // 1. State Filter (25% Weight) - Hard Filter
+  if (preferredStates.length > 0) {
+    const isStateMatched = preferredStates.some(s => s.trim().toUpperCase() === propertyState);
+    if (!isStateMatched) {
+      return { matched: false, score: 0, breakdown: { state: false, propertyType: false, budget: false, city: false, units: false } };
+    }
+  }
+
+  // 2. Property Type Filter (25% Weight) - Hard Filter
+  const desiredPropertyTypes = buyBox.desiredPropertyTypes || [];
+  const propertyType = (property.propertyType || '').trim();
+
+  if (desiredPropertyTypes.length > 0) {
+    const isTypeMatched = desiredPropertyTypes.some(t => {
+      const cleanT = t.toLowerCase();
+      const cleanPT = propertyType.toLowerCase();
+      return cleanT.includes(cleanPT) || cleanPT.includes(cleanT) ||
+             (cleanT.includes('sfr') && cleanPT.includes('sfr')) ||
+             (cleanT.includes('multi') && cleanPT.includes('multi'));
+    });
+    if (!isTypeMatched) {
+      return { matched: false, score: 0, breakdown: { state: preferredStates.length > 0, propertyType: false, budget: false, city: false, units: false } };
+    }
+  }
+
+  let score = 0;
+  const breakdown = {
+    state: true,
+    propertyType: true,
+    budget: false,
+    city: false,
+    units: false
+  };
+
+  score += 25; // Passed state filter
+  score += 25; // Passed property type filter
+
+  // 3. Budget Range (25% Weight)
+  const price = property.askingPrice || property.price || 0;
+  const bMin = buyerOrInvestor.budgetMin || 0;
+  const bMax = buyerOrInvestor.budgetMax || buyBox.maxBudget || 0;
+
+  let budgetMatches = false;
+  if (bMin === 0 && bMax === 0) {
+    budgetMatches = true;
+  } else if (bMin > 0 && bMax > 0) {
+    budgetMatches = price >= bMin && price <= bMax;
+  } else if (bMax > 0) {
+    budgetMatches = price <= bMax;
+  } else if (bMin > 0) {
+    budgetMatches = price >= bMin;
+  }
+
+  if (budgetMatches) {
+    score += 25;
+    breakdown.budget = true;
+  }
+
+  // 4. City (10% Weight, optional) - Bonus
+  const preferredCities = buyBox.preferredCities || [];
+  const propertyCity = (property.city || '').trim().toLowerCase();
+
+  let cityMatches = false;
+  if (preferredCities.length === 0) {
+    cityMatches = true;
+  } else {
+    cityMatches = preferredCities.some(c => c.trim().toLowerCase() === propertyCity);
+  }
+
+  if (cityMatches) {
+    score += 10;
+    breakdown.city = true;
+  }
+
+  // 5. Unit Count (15% Weight, MF only)
+  const isMultifamily = /multi|duplex|triplex|quad|apartment/i.test(propertyType);
+  const uMin = buyerOrInvestor.unitRangeMin || buyerOrInvestor.minUnits || 0;
+  const uMax = buyerOrInvestor.unitRangeMax || buyerOrInvestor.maxUnits || 0;
+
+  let unitCountMatches = true;
+  if (isMultifamily) {
+    const propUnits = property.units || 0;
+    if (uMin > 0 || uMax > 0) {
+      if (propUnits > 0) {
+        if (uMin > 0 && uMax > 0) {
+          unitCountMatches = propUnits >= uMin && propUnits <= uMax;
+        } else if (uMax > 0) {
+          unitCountMatches = propUnits <= uMax;
+        } else if (uMin > 0) {
+          unitCountMatches = propUnits >= uMin;
+        }
+      } else {
+        unitCountMatches = false;
+      }
+    }
+  }
+
+  if (unitCountMatches) {
+    score += 15;
+    breakdown.units = true;
+  }
+
+  return {
+    matched: true,
+    score: Math.round(score),
+    breakdown
+  };
 }
 
 export async function findMatchesForProperty(property) {
@@ -461,7 +962,8 @@ export async function findMatchesForProperty(property) {
   const matches = [];
 
   for (const b of allBuyers) {
-    if (serverMatchesBuyBox(property, b.buyBox)) {
+    const res = serverCalculateMatchScore(property, b);
+    if (res.matched) {
       matches.push({
         id: b.id,
         name: b.fullName,
@@ -470,11 +972,14 @@ export async function findMatchesForProperty(property) {
         email: b.email,
         type: 'Buyer',
         buyerType: b.buyerType,
+        score: res.score,
+        breakdown: res.breakdown
       });
     }
   }
   for (const i of allInvestors) {
-    if (serverMatchesBuyBox(property, i.buyBox)) {
+    const res = serverCalculateMatchScore(property, i);
+    if (res.matched) {
       matches.push({
         id: i.id,
         name: i.investorName,
@@ -483,10 +988,20 @@ export async function findMatchesForProperty(property) {
         email: i.email,
         type: 'Investor',
         linkedInUrl: i.linkedInUrl,
+        score: res.score,
+        breakdown: res.breakdown
       });
     }
   }
-  return matches.slice(0, 8); // top matches
+
+  // Sort matches by score descending, name ascending
+  matches.sort((a, b) => {
+    const scoreDiff = (b.score || 0) - (a.score || 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return a.name.localeCompare(b.name);
+  });
+
+  return matches.slice(0, 15); // top 15 matches
 }
 
 export async function autoMatchProperty(propertyId) {
@@ -495,19 +1010,8 @@ export async function autoMatchProperty(propertyId) {
 
   const matches = await findMatchesForProperty(prop);
 
-  // Simple real-time score (mirrors frontend)
-  let dealScore = null;
-  if (prop.arv && prop.repairCosts && prop.arv > 0) {
-    const mao = prop.arv * 0.7 - (prop.repairCosts || 0) - (prop.assignmentFee || 10000);
-    if (mao > 0) {
-      const profitRatio = (prop.assignmentFee || 10000) / mao;
-      const marginScore = Math.min(profitRatio * 200, 60);
-      const spreadScore = Math.min(((prop.arv - prop.price) / prop.arv) * 40, 40);
-      dealScore = Math.max(1, Math.min(100, Math.round(marginScore + spreadScore)));
-    } else {
-      dealScore = 1;
-    }
-  }
+  // Real-time deal score based on 5.4 requirements
+  const dealScore = await computeDealScore(prop);
 
   const updated = await properties.update(propertyId, {
     topMatches: matches,
@@ -518,15 +1022,115 @@ export async function autoMatchProperty(propertyId) {
   return { property: updated, matches, dealScore };
 }
 
+export async function reRunMatchingForAllProperties() {
+  const allProperties = await propertiesBase.list();
+  for (const prop of allProperties) {
+    const matches = await findMatchesForProperty(prop);
+    const score = prop.dealScore !== undefined && prop.dealScore !== null
+      ? prop.dealScore
+      : await computeDealScore(prop);
+    await propertiesBase.update(prop.id, {
+      topMatches: matches,
+      dealScore: score,
+      status: prop.status === 'new' && matches.length > 0 ? 'matched' : prop.status
+    });
+  }
+}
+
 // Helper to compute score (can be called from routes)
-export function computeDealScore(property) {
-  if (!property.arv || !property.repairCosts || property.arv <= 0) return null;
-  const mao = property.arv * 0.7 - property.repairCosts - (property.assignmentFee || 10000);
-  if (mao <= 0) return 1;
-  const profitRatio = (property.assignmentFee || 10000) / mao;
-  const marginScore = Math.min(profitRatio * 200, 60);
-  const spreadScore = Math.min(((property.arv - property.price) / property.arv) * 40, 40);
-  return Math.max(1, Math.min(100, Math.round(marginScore + spreadScore)));
+export async function computeDealScore(property) {
+  const { arv, repairCosts, price, askingPrice, leadCategories, createdAt } = property;
+  if (!arv || arv <= 0) return null;
+
+  const priceVal = Number(askingPrice || price || 0);
+
+  // 1. Equity (ARV vs Price/Asking Price) - 35% weight
+  let equityScore = 0;
+  if (priceVal > 0) {
+    const equityPct = (arv - priceVal) / arv;
+    if (equityPct >= 0.40) {
+      equityScore = 100;
+    } else if (equityPct <= 0.10) {
+      equityScore = 0;
+    } else {
+      equityScore = ((equityPct - 0.10) / (0.40 - 0.10)) * 100;
+    }
+  }
+
+  // 2. Lead Category Quality - 20% weight
+  let categoryScore = 30; // default low
+  const categories = Array.isArray(leadCategories)
+    ? leadCategories
+    : (typeof leadCategories === 'string' ? JSON.parse(leadCategories || '[]') : []);
+
+  const highQuality = ['foreclosure', 'vacant', 'tax delinquent', 'distressed', 'tired landlord', 'probate', 'expired'];
+  const medQuality = ['pre-foreclosure', 'absentee owner', 'rental property', 'divorce', 'bankruptcy'];
+
+  if (categories && categories.length > 0) {
+    const cats = categories.map(c => String(c).trim().toLowerCase());
+    const hasHigh = cats.some(c => highQuality.includes(c));
+    const hasMed = cats.some(c => medQuality.includes(c));
+    if (hasHigh) {
+      categoryScore = 100;
+    } else if (hasMed) {
+      categoryScore = 70;
+    }
+  }
+
+  // 3. Days on Market - 15% weight
+  let domScore = 60; // default medium
+  if (createdAt) {
+    const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 3600 * 24);
+    if (days >= 90) domScore = 100;
+    else if (days >= 60) domScore = 80;
+    else if (days >= 30) domScore = 60;
+    else if (days >= 15) domScore = 40;
+    else domScore = 20;
+  }
+
+  // 4. Estimated Repair Cost vs ARV - 15% weight
+  let repairScore = 100;
+  if (repairCosts > 0) {
+    const repairPct = repairCosts / arv;
+    if (repairPct <= 0.10) {
+      repairScore = 100;
+    } else if (repairPct >= 0.50) {
+      repairScore = 20;
+    } else {
+      repairScore = 100 - ((repairPct - 0.10) / (0.50 - 0.10)) * 80;
+    }
+  }
+
+  // 5. Price Range Desirability - 15% weight
+  let priceDesirabilityScore = 100;
+  try {
+    const buyers = await query('SELECT max_budget FROM buyers WHERE max_budget IS NOT NULL AND max_budget > 0');
+    if (buyers && buyers.length > 0) {
+      const matchingBuyers = buyers.filter(b => Number(b.max_budget) >= priceVal);
+      priceDesirabilityScore = (matchingBuyers.length / buyers.length) * 100;
+    } else {
+      // Fallback
+      if (priceVal >= 50000 && priceVal <= 250000) priceDesirabilityScore = 100;
+      else if (priceVal > 250000 && priceVal <= 400000) priceDesirabilityScore = 75;
+      else if (priceVal < 50000) priceDesirabilityScore = 60;
+      else priceDesirabilityScore = 30;
+    }
+  } catch (e) {
+    if (priceVal >= 50000 && priceVal <= 250000) priceDesirabilityScore = 100;
+    else if (priceVal > 250000 && priceVal <= 400000) priceDesirabilityScore = 75;
+    else if (priceVal < 50000) priceDesirabilityScore = 60;
+    else priceDesirabilityScore = 30;
+  }
+
+  const finalScore = Math.round(
+    (equityScore * 0.35) +
+    (categoryScore * 0.20) +
+    (domScore * 0.15) +
+    (repairScore * 0.15) +
+    (priceDesirabilityScore * 0.15)
+  );
+
+  return Math.max(0, Math.min(100, finalScore));
 }
 
 export async function countAll() {

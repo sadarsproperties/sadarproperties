@@ -15,31 +15,106 @@ export function SellersTable({ sellers, onUpdate, onDelete }: SellersTableProps)
     <ContactTableShell
       emptyMessage="No sellers yet. Import CSV, add manually, or load sample data."
       isEmpty={!sellers.length}
-      columns={['Owner Name', 'Phone', 'Email', 'Mailing Address', '']}
-      rows={sellers.map((seller) => (
-        <tr key={seller.id} className="border-t border-slate-800">
-          <td className="px-4 py-2">
-            <EditableCell value={seller.ownerName} onSave={(ownerName) => onUpdate({ ...seller, ownerName })} />
-          </td>
-          <td className="px-4 py-2">
-            <EditableCell value={seller.phone} onSave={(phone) => onUpdate({ ...seller, phone })} />
-          </td>
-          <td className="px-4 py-2">
-            <EditableCell value={seller.email} type="email" onSave={(email) => onUpdate({ ...seller, email })} />
-          </td>
-          <td className="px-4 py-2">
-            <EditableCell
-              value={seller.mailingAddress}
-              onSave={(mailingAddress) => onUpdate({ ...seller, mailingAddress })}
-            />
-          </td>
-          <td className="px-4 py-2 text-right">
-            <button type="button" onClick={() => onDelete(seller.id)} className="text-xs text-rose-400 hover:underline">
-              Delete
-            </button>
-          </td>
-        </tr>
-      ))}
+      columns={[
+        'Owner Name',
+        'Phone Numbers',
+        'Email Addresses',
+        'Mailing Address',
+        'Ownership Type',
+        'Company/Entity',
+        'Equity Est ($)',
+        'Years Owned',
+        'Skip Traced',
+        'Last Contact',
+        'Notes',
+        ''
+      ]}
+      rows={sellers.map((seller) => {
+        const pNumbers = Array.isArray(seller.phoneNumbers) ? seller.phoneNumbers : [seller.phone || ''];
+        const eAddresses = Array.isArray(seller.emailAddresses) ? seller.emailAddresses : [seller.email || ''];
+        return (
+          <tr key={seller.id} className="border-t border-black/5 hover:bg-black/5 transition">
+            <td className="px-4 py-3">
+              <EditableCell value={seller.ownerName} onSave={(ownerName) => onUpdate({ ...seller, ownerName })} />
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell 
+                value={pNumbers.join(', ')} 
+                onSave={(value) => onUpdate({ ...seller, phoneNumbers: splitList(value), phone: splitList(value)[0] || '' })} 
+              />
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell 
+                value={eAddresses.join(', ')} 
+                onSave={(value) => onUpdate({ ...seller, emailAddresses: splitList(value), email: splitList(value)[0] || '' })} 
+              />
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell
+                value={seller.mailingAddress || ''}
+                onSave={(mailingAddress) => onUpdate({ ...seller, mailingAddress })}
+              />
+            </td>
+            <td className="px-4 py-3">
+              <select
+                value={seller.ownershipType || 'Individual'}
+                onChange={(e) => onUpdate({ ...seller, ownershipType: e.target.value as any })}
+                className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm outline-none focus:border-[#1A3C34]"
+              >
+                <option value="Individual">Individual</option>
+                <option value="LLC/Entity">LLC/Entity</option>
+              </select>
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell
+                value={seller.entityName || ''}
+                onSave={(entityName) => onUpdate({ ...seller, entityName })}
+              />
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell
+                value={seller.equityEstimate != null ? seller.equityEstimate.toString() : ''}
+                type="number"
+                onSave={(val) => onUpdate({ ...seller, equityEstimate: val ? Number(val) : null })}
+              />
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell
+                value={seller.ownershipYears != null ? seller.ownershipYears.toString() : ''}
+                type="number"
+                onSave={(val) => onUpdate({ ...seller, ownershipYears: val ? parseInt(val, 10) : null })}
+              />
+            </td>
+            <td className="px-4 py-3 text-center">
+              <input 
+                type="checkbox" 
+                checked={!!seller.skipTraced} 
+                onChange={(e) => onUpdate({ ...seller, skipTraced: e.target.checked })} 
+                className="h-4 w-4 rounded border-black/10 text-[#1A3C34] focus:ring-[#1A3C34]"
+              />
+            </td>
+            <td className="px-4 py-3">
+              <input 
+                type="date" 
+                value={seller.lastContactDate ? seller.lastContactDate.slice(0, 10) : ''} 
+                onChange={(e) => onUpdate({ ...seller, lastContactDate: e.target.value })} 
+                className="rounded-lg border border-black/10 bg-white px-2 py-1 text-sm outline-none focus:border-[#1A3C34]"
+              />
+            </td>
+            <td className="px-4 py-3">
+              <EditableCell
+                value={seller.contactNotes || ''}
+                onSave={(contactNotes) => onUpdate({ ...seller, contactNotes })}
+              />
+            </td>
+            <td className="px-4 py-3 text-right">
+              <button type="button" onClick={() => onDelete(seller.id)} className="text-xs font-semibold text-rose-500 hover:underline">
+                Delete
+              </button>
+            </td>
+          </tr>
+        );
+      })}
     />
   );
 }
@@ -48,9 +123,10 @@ interface BuyersTableProps {
   buyers: Buyer[];
   onUpdate: (buyer: Buyer) => void;
   onDelete: (id: string) => void;
+  onOpenDrawer: (buyer: Buyer) => void;
 }
 
-export function BuyersTable({ buyers, onUpdate, onDelete }: BuyersTableProps) {
+export function BuyersTable({ buyers, onUpdate, onDelete, onOpenDrawer }: BuyersTableProps) {
   return (
     <ContactTableShell
       emptyMessage="No buyers yet."
@@ -134,9 +210,14 @@ export function BuyersTable({ buyers, onUpdate, onDelete }: BuyersTableProps) {
             />
           </td>
           <td className="px-4 py-2 text-right">
-            <button type="button" onClick={() => onDelete(buyer.id)} className="text-xs text-rose-400 hover:underline">
-              Delete
-            </button>
+            <div className="flex items-center justify-end gap-2">
+              <button type="button" onClick={() => onOpenDrawer(buyer)} className="text-xs text-sky-400 hover:underline">
+                Details
+              </button>
+              <button type="button" onClick={() => onDelete(buyer.id)} className="text-xs text-rose-400 hover:underline">
+                Delete
+              </button>
+            </div>
           </td>
         </tr>
       ))}
@@ -148,14 +229,15 @@ interface InvestorsTableProps {
   investors: Investor[];
   onUpdate: (investor: Investor) => void;
   onDelete: (id: string) => void;
+  onOpenDrawer: (investor: Investor) => void;
 }
 
-export function InvestorsTable({ investors, onUpdate, onDelete }: InvestorsTableProps) {
+export function InvestorsTable({ investors, onUpdate, onDelete, onOpenDrawer }: InvestorsTableProps) {
   return (
     <ContactTableShell
       emptyMessage="No investors yet."
       isEmpty={!investors.length}
-      columns={['Investor Name', 'Company', 'Phone', 'Email', 'LinkedIn', 'States', 'Cities', 'Types', 'Max Budget', '']}
+      columns={['Investor Name', 'Company', 'Source', 'AI', 'Phone', 'Email', 'LinkedIn', 'States', 'Cities', 'Types', 'Max Budget', '']}
       rows={investors.map((investor) => (
         <tr key={investor.id} className="border-t border-slate-800">
           <td className="px-4 py-2">
@@ -167,6 +249,20 @@ export function InvestorsTable({ investors, onUpdate, onDelete }: InvestorsTable
           <td className="px-4 py-2">
             <EditableCell value={investor.companyName} onSave={(companyName) => onUpdate({ ...investor, companyName })} />
           </td>
+          <td className="px-4 py-2 text-xs">
+            <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700 font-semibold border border-slate-200">
+              {investor.sourcePlatform || 'Manual'}
+            </span>
+          </td>
+          <td className="px-4 py-2 text-xs">
+            {investor.aiExtracted ? (
+              <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700 font-bold border border-emerald-200">
+                AI
+              </span>
+            ) : (
+              <span className="text-slate-400">—</span>
+            )}
+          </td>
           <td className="px-4 py-2">
             <EditableCell value={investor.phone} onSave={(phone) => onUpdate({ ...investor, phone })} />
           </td>
@@ -175,7 +271,7 @@ export function InvestorsTable({ investors, onUpdate, onDelete }: InvestorsTable
           </td>
           <td className="px-4 py-2">
             <EditableCell
-              value={investor.linkedInUrl}
+              value={investor.linkedInUrl || ''}
               type="url"
               onSave={(linkedInUrl) => onUpdate({ ...investor, linkedInUrl })}
             />
@@ -231,9 +327,14 @@ export function InvestorsTable({ investors, onUpdate, onDelete }: InvestorsTable
             />
           </td>
           <td className="px-4 py-2 text-right">
-            <button type="button" onClick={() => onDelete(investor.id)} className="text-xs text-rose-400 hover:underline">
-              Delete
-            </button>
+            <div className="flex items-center justify-end gap-2">
+              <button type="button" onClick={() => onOpenDrawer(investor)} className="text-xs text-sky-400 hover:underline">
+                Details
+              </button>
+              <button type="button" onClick={() => onDelete(investor.id)} className="text-xs text-rose-400 hover:underline">
+                Delete
+              </button>
+            </div>
           </td>
         </tr>
       ))}

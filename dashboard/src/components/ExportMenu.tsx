@@ -21,23 +21,23 @@ export function ExportMenu({ rows, filename, disabled }: ExportMenuProps) {
         type="button"
         disabled={disabled || rows.length === 0}
         onClick={() => setOpen((value) => !value)}
-        className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-2xl bg-[#0BA887] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#099275] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       >
         Export ({rows.length})
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+        <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-xl py-1 text-slate-800">
           <button
             type="button"
             onClick={() => handleExport('xlsx')}
-            className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-800"
+            className="block w-full px-4 py-2.5 text-left text-sm font-semibold hover:bg-black/5 transition"
           >
             Excel (.xlsx)
           </button>
           <button
             type="button"
             onClick={() => handleExport('csv')}
-            className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-800"
+            className="block w-full px-4 py-2.5 text-left text-sm font-semibold hover:bg-black/5 transition"
           >
             CSV (.csv)
           </button>

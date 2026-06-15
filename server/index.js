@@ -423,10 +423,16 @@ Return ONLY valid JSON with this exact shape:
   "preferredCities": string[],
   "desiredPropertyTypes": string[],
   "maxBudget": number | null,
+  "budgetMin": number | null,
+  "budgetMax": number | null,
+  "unitRangeMin": number | null,
+  "unitRangeMax": number | null,
+  "investmentStrategy": string | null,
+  "exclusions": string | null,
   "notes": string
 }
 
-Be accurate and conservative.`;
+Be accurate and conservative. Set fields to null if they cannot be determined. In the "notes" field, include any exclusions, markets they avoid, and other qualitative context.`;
 
   if (inferred) {
     systemPrompt += `\n\nNote: The input content is a JSON list of scraped properties. Focus on these extracted baselines:
@@ -495,7 +501,15 @@ Be accurate and conservative.`;
 }
 
 function normalizeBuyBox(raw, inferred = null) {
-  const allowedTypes = ['Single Family', 'Multifamily', 'Duplex', 'Triplex', 'Quadplex', 'Apartment', 'Commercial'];
+  const allowedTypes = [
+    'Single Family Residence (SFR)',
+    'Multifamily (General — 5+ units)',
+    'Duplex (2 units)',
+    'Triplex (3 units)',
+    'Quadplex (4 units)',
+    'Apartment Complex',
+    'Commercial'
+  ];
   const rawTypes = Array.isArray(raw.desiredPropertyTypes) ? raw.desiredPropertyTypes : (inferred?.types || []);
   const desiredPropertyTypes = [];
 
@@ -503,28 +517,37 @@ function normalizeBuyBox(raw, inferred = null) {
     if (!t) continue;
     const clean = String(t).trim().toLowerCase();
     if (clean.includes('single') || clean === 'sfr' || clean === 'house' || clean === 'residential') {
-      if (!desiredPropertyTypes.includes('Single Family')) desiredPropertyTypes.push('Single Family');
-    } else if (clean.includes('multi') || clean === 'apartment' || clean === 'apartments') {
-      if (!desiredPropertyTypes.includes('Multifamily')) desiredPropertyTypes.push('Multifamily');
+      if (!desiredPropertyTypes.includes('Single Family Residence (SFR)')) desiredPropertyTypes.push('Single Family Residence (SFR)');
+    } else if (clean.includes('apartment') || clean === 'apartments' || clean.includes('complex')) {
+      if (!desiredPropertyTypes.includes('Apartment Complex')) desiredPropertyTypes.push('Apartment Complex');
+    } else if (clean.includes('multi') || clean === 'multifamily') {
+      if (!desiredPropertyTypes.includes('Multifamily (General — 5+ units)')) desiredPropertyTypes.push('Multifamily (General — 5+ units)');
     } else if (clean.includes('duplex')) {
-      if (!desiredPropertyTypes.includes('Duplex')) desiredPropertyTypes.push('Duplex');
+      if (!desiredPropertyTypes.includes('Duplex (2 units)')) desiredPropertyTypes.push('Duplex (2 units)');
     } else if (clean.includes('triplex')) {
-      if (!desiredPropertyTypes.includes('Triplex')) desiredPropertyTypes.push('Triplex');
+      if (!desiredPropertyTypes.includes('Triplex (3 units)')) desiredPropertyTypes.push('Triplex (3 units)');
     } else if (clean.includes('quad')) {
-      if (!desiredPropertyTypes.includes('Quadplex')) desiredPropertyTypes.push('Quadplex');
+      if (!desiredPropertyTypes.includes('Quadplex (4 units)')) desiredPropertyTypes.push('Quadplex (4 units)');
     } else if (clean.includes('commercial') || clean === 'retail' || clean === 'office' || clean === 'industrial') {
       if (!desiredPropertyTypes.includes('Commercial')) desiredPropertyTypes.push('Commercial');
     } else {
-      const formatted = clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      if (allowedTypes.includes(formatted) && !desiredPropertyTypes.includes(formatted)) {
-        desiredPropertyTypes.push(formatted);
+      // Find case-insensitive match from allowedTypes
+      const matched = allowedTypes.find(at => at.toLowerCase().includes(clean) || clean.includes(at.toLowerCase()));
+      if (matched && !desiredPropertyTypes.includes(matched)) {
+        desiredPropertyTypes.push(matched);
       }
     }
   }
 
   // Fallback to Single Family if still empty but we have raw input or inferred input
   if (desiredPropertyTypes.length === 0 && (rawTypes.length > 0 || inferred?.types?.length > 0)) {
-    desiredPropertyTypes.push('Single Family');
+    desiredPropertyTypes.push('Single Family Residence (SFR)');
+  }
+
+  // Combine raw exclusions or notes if any
+  let notes = String(raw.notes || '').slice(0, 300);
+  if (raw.exclusions) {
+    notes = `Exclusions: ${raw.exclusions}. ${notes}`.slice(0, 400);
   }
 
   return {
@@ -536,7 +559,12 @@ function normalizeBuyBox(raw, inferred = null) {
     preferredCities: Array.isArray(raw.preferredCities) && raw.preferredCities.length ? raw.preferredCities.filter(Boolean).map(String) : (inferred?.cities || []),
     desiredPropertyTypes,
     maxBudget: raw.maxBudget ? Math.round(Number(raw.maxBudget)) : (inferred?.budget || null),
-    notes: String(raw.notes || '').slice(0, 300),
+    budgetMin: raw.budgetMin != null ? Math.round(Number(raw.budgetMin)) : null,
+    budgetMax: raw.budgetMax != null ? Math.round(Number(raw.budgetMax)) : null,
+    unitRangeMin: raw.unitRangeMin != null ? Math.round(Number(raw.unitRangeMin)) : null,
+    unitRangeMax: raw.unitRangeMax != null ? Math.round(Number(raw.unitRangeMax)) : null,
+    investmentStrategy: raw.investmentStrategy || null,
+    notes,
   };
 }
 
@@ -914,8 +942,72 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
 // Use the async Postgres-backed resources from db.js
 function mountResource(path, resource) {
-  app.get(`/api/${path}`, requireAuth, async (_req, res) => {
-    res.json(await resource.list());
+  app.get(`/api/${path}`, requireAuth, async (req, res) => {
+    let list = await resource.list();
+    if (path === 'sellers') {
+      const {
+        ownerName,
+        phone,
+        email,
+        zip,
+        state,
+        ownershipType,
+        equityMin,
+        equityMax,
+        yearsMin,
+        yearsMax
+      } = req.query;
+
+      if (ownerName) {
+        const q = String(ownerName).toLowerCase();
+        list = list.filter(s => s.ownerName?.toLowerCase().includes(q));
+      }
+      if (phone) {
+        const q = String(phone).replace(/\D/g, '');
+        list = list.filter(s => {
+          const numbers = Array.isArray(s.phoneNumbers) ? s.phoneNumbers : [];
+          if (s.phone && s.phone.replace(/\D/g, '').includes(q)) return true;
+          return numbers.some(n => String(n).replace(/\D/g, '').includes(q));
+        });
+      }
+      if (email) {
+        const q = String(email).toLowerCase();
+        list = list.filter(s => {
+          const addresses = Array.isArray(s.emailAddresses) ? s.emailAddresses : [];
+          if (s.email && s.email.toLowerCase().includes(q)) return true;
+          return addresses.some(e => String(e).toLowerCase().includes(q));
+        });
+      }
+      if (zip) {
+        const q = String(zip).trim();
+        list = list.filter(s => s.mailingAddress?.includes(q));
+      }
+      if (state) {
+        const q = String(state).trim().toLowerCase();
+        list = list.filter(s => s.mailingAddress?.toLowerCase().includes(q));
+      }
+      if (ownershipType) {
+        const q = String(ownershipType).toLowerCase();
+        list = list.filter(s => s.ownershipType?.toLowerCase() === q);
+      }
+      if (equityMin != null && equityMin !== '') {
+        const min = Number(equityMin);
+        list = list.filter(s => s.equityEstimate != null && s.equityEstimate >= min);
+      }
+      if (equityMax != null && equityMax !== '') {
+        const max = Number(equityMax);
+        list = list.filter(s => s.equityEstimate != null && s.equityEstimate <= max);
+      }
+      if (yearsMin != null && yearsMin !== '') {
+        const min = Number(yearsMin);
+        list = list.filter(s => s.ownershipYears != null && s.ownershipYears >= min);
+      }
+      if (yearsMax != null && yearsMax !== '') {
+        const max = Number(yearsMax);
+        list = list.filter(s => s.ownershipYears != null && s.ownershipYears <= max);
+      }
+    }
+    res.json(list);
   });
   app.post(`/api/${path}`, requireAuth, async (req, res) => {
     const inserted = await resource.insert(req.body);

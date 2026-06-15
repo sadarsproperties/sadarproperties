@@ -14,10 +14,12 @@ interface AppLayoutProps {
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: 'fa-house' },
+  { to: '/properties', label: 'Properties', icon: 'fa-building' },
   { to: '/pipeline', label: 'Pipeline', icon: 'fa-columns' },
-  { to: '/lead-capture', label: 'Leads', icon: 'fa-magnifying-glass-dollar' },
+  { to: '/lead-capture', label: 'Add Lead', icon: 'fa-plus' },
   { to: '/deal-analyzer', label: 'Analyzer', icon: 'fa-calculator' },
   { to: '/buyers', label: 'Buyers', icon: 'fa-users' },
+  { to: '/sellers', label: 'Sellers', icon: 'fa-address-book' },
 ];
 
 export default function AppLayout({ children, title, showBack, onBack }: AppLayoutProps) {

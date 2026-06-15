@@ -50,6 +50,9 @@ export const api = {
   bulkProperties: (items: Partial<Property>[]) =>
     request<Property[]>('/properties/bulk', { method: 'POST', body: JSON.stringify(items) }),
 
+  getSellers: (params?: Record<string, string>) =>
+    request<Seller[]>('/sellers' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+
   createSeller: (seller: Partial<Seller>) =>
     request<Seller>('/sellers', { method: 'POST', body: JSON.stringify(seller) }),
   updateSeller: (id: string, seller: Partial<Seller>) =>

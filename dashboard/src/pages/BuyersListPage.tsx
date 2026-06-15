@@ -6,11 +6,16 @@ import { api } from '../api/client'
 import type { Buyer, Investor } from '../types'
 import AppLayout from '../components/AppLayout'
 import PromptModal from '../components/PromptModal'
+import { ExportMenu } from '../components/ExportMenu'
+import { BuyerDrawer } from '../components/BuyerDrawer'
+import { InvestorDrawer } from '../components/InvestorDrawer'
 
 export default function BuyersListPage() {
   const navigate = useNavigate()
   const { data, refresh, loading } = useStore()
   const [filter, setFilter] = useState<'all' | Buyer['buyerType']>('all')
+  const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null)
+  const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null)
 
   // AI Buy Box Extractor state
   const [extractInput, setExtractInput] = useState('')
@@ -74,6 +79,11 @@ export default function BuyersListPage() {
         { key: 'companyName', label: 'Company Name', defaultValue: extractResult.companyName || '', placeholder: 'e.g. Acme Holdings' },
         { key: 'phone', label: 'Phone Number', defaultValue: extractResult.phone || '', placeholder: 'e.g. 555-0199' },
         { key: 'email', label: 'Email Address', defaultValue: extractResult.email || '', placeholder: 'e.g. john@example.com', type: 'email' },
+        { key: 'zillowUrl', label: 'Zillow Profile URL', defaultValue: extractUrl && extractUrl.includes('zillow.com') ? extractUrl : '', placeholder: 'e.g. https://www.zillow.com/profile/...' },
+        { key: 'redfinUrl', label: 'Redfin Profile URL', defaultValue: extractUrl && extractUrl.includes('redfin.com') ? extractUrl : '', placeholder: 'e.g. https://www.redfin.com/...' },
+        { key: 'realtorUrl', label: 'Realtor.com Profile URL', defaultValue: extractUrl && extractUrl.includes('realtor.com') ? extractUrl : '', placeholder: 'e.g. https://www.realtor.com/...' },
+        { key: 'propstreamUrl', label: 'PropStream Link', defaultValue: extractUrl && extractUrl.includes('propstream') ? extractUrl : '', placeholder: 'e.g. PropStream URL...' },
+        { key: 'batchleadsUrl', label: 'BatchLeads Link', defaultValue: extractUrl && extractUrl.includes('batchleads') ? extractUrl : '', placeholder: 'e.g. BatchLeads URL...' },
         { key: 'preferredStates', label: 'Preferred States (comma-separated)', defaultValue: (extractResult.preferredStates || []).join(', '), placeholder: 'e.g. TX, FL, GA' },
         { key: 'preferredCities', label: 'Preferred Cities (comma-separated)', defaultValue: (extractResult.preferredCities || []).join(', '), placeholder: 'e.g. Houston, Orlando' },
         { key: 'desiredPropertyTypes', label: 'Desired Property Types (comma-separated)', defaultValue: (extractResult.desiredPropertyTypes || []).join(', '), placeholder: 'e.g. Single Family, Multifamily' },
@@ -88,10 +98,15 @@ export default function BuyersListPage() {
             phone: values.phone || '',
             email: values.email || '',
             buyerType: 'Cash Buyer',
+            zillowUrl: values.zillowUrl || '',
+            redfinUrl: values.redfinUrl || '',
+            realtorUrl: values.realtorUrl || '',
+            propstreamUrl: values.propstreamUrl || '',
+            batchleadsUrl: values.batchleadsUrl || '',
             buyBox: {
               preferredStates: values.preferredStates ? values.preferredStates.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [],
               preferredCities: values.preferredCities ? values.preferredCities.split(',').map(c => c.trim()).filter(Boolean) : [],
-              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family']) as any,
+              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family Residence (SFR)']) as any,
               maxBudget: values.maxBudget ? Number(values.maxBudget) : null,
             },
           })
@@ -119,11 +134,30 @@ export default function BuyersListPage() {
         { key: 'companyName', label: 'Company Name', defaultValue: extractResult.companyName || '', placeholder: 'e.g. Acme Holdings' },
         { key: 'phone', label: 'Phone Number', defaultValue: extractResult.phone || '', placeholder: 'e.g. 555-0188' },
         { key: 'email', label: 'Email Address', defaultValue: extractResult.email || '', placeholder: 'e.g. sarah@investments.com', type: 'email' },
-        { key: 'linkedInUrl', label: 'LinkedIn Profile URL', defaultValue: extractUrl || '', placeholder: 'e.g. https://linkedin.com/in/sarah' },
+        { key: 'linkedInUrl', label: 'LinkedIn Profile URL', defaultValue: extractUrl && extractUrl.includes('linkedin.com') ? extractUrl : '', placeholder: 'e.g. https://linkedin.com/in/sarah' },
+        { key: 'biggerPocketsUrl', label: 'BiggerPockets Profile URL', defaultValue: extractUrl && extractUrl.includes('biggerpockets.com') ? extractUrl : '', placeholder: 'e.g. https://biggerpockets.com/users/...' },
+        { key: 'facebookUrl', label: 'Facebook URL', defaultValue: extractUrl && extractUrl.includes('facebook.com') ? extractUrl : '', placeholder: 'e.g. https://facebook.com/...' },
+        { key: 'twitterUrl', label: 'Twitter / X URL', defaultValue: extractUrl && (extractUrl.includes('x.com') || extractUrl.includes('twitter.com')) ? extractUrl : '', placeholder: 'e.g. https://x.com/...' },
+        { key: 'instagramUrl', label: 'Instagram URL', defaultValue: extractUrl && extractUrl.includes('instagram.com') ? extractUrl : '', placeholder: 'e.g. https://instagram.com/...' },
+        { key: 'connectedInvestorsUrl', label: 'Connected Investors URL', defaultValue: extractUrl && extractUrl.includes('connectedinvestors.com') ? extractUrl : '', placeholder: 'https://connectedinvestors.com/member/...' },
+        { key: 'loopnetUrl', label: 'LoopNet Profile URL', defaultValue: extractUrl && extractUrl.includes('loopnet.com') ? extractUrl : '', placeholder: 'https://loopnet.com/...' },
+        { key: 'crexiUrl', label: 'Crexi Profile URL', defaultValue: extractUrl && extractUrl.includes('crexi.com') ? extractUrl : '', placeholder: 'https://crexi.com/...' },
+        { key: 'zillowUrl', label: 'Zillow Profile URL', defaultValue: extractUrl && extractUrl.includes('zillow.com') ? extractUrl : '', placeholder: 'e.g. https://www.zillow.com/profile/...' },
+        { key: 'redfinUrl', label: 'Redfin Profile URL', defaultValue: extractUrl && extractUrl.includes('redfin.com') ? extractUrl : '', placeholder: 'e.g. https://www.redfin.com/...' },
+        { key: 'realtorUrl', label: 'Realtor.com Profile URL', defaultValue: extractUrl && extractUrl.includes('realtor.com') ? extractUrl : '', placeholder: 'e.g. https://www.realtor.com/...' },
+        { key: 'propstreamUrl', label: 'PropStream Link', defaultValue: extractUrl && extractUrl.includes('propstream') ? extractUrl : '', placeholder: 'e.g. PropStream URL...' },
+        { key: 'batchleadsUrl', label: 'BatchLeads Link', defaultValue: extractUrl && extractUrl.includes('batchleads') ? extractUrl : '', placeholder: 'e.g. BatchLeads URL...' },
+        { key: 'sourcePlatform', label: 'Source Platform', defaultValue: extractUrl && extractUrl.includes('linkedin.com') ? 'LinkedIn' : (extractUrl && extractUrl.includes('biggerpockets.com') ? 'BiggerPockets' : (extractUrl && extractUrl.includes('loopnet.com') ? 'LoopNet' : (extractUrl && extractUrl.includes('crexi.com') ? 'Crexi' : (extractUrl && extractUrl.includes('connectedinvestors.com') ? 'Connected Investors' : 'Manual')))), placeholder: 'e.g. LinkedIn, Crexi' },
+        { key: 'buyBoxRaw', label: 'Raw Buy Box Text', defaultValue: extractInput || '', placeholder: 'Pasted raw text...' },
         { key: 'preferredStates', label: 'Preferred States (comma-separated)', defaultValue: (extractResult.preferredStates || []).join(', '), placeholder: 'e.g. TX, FL, GA' },
         { key: 'preferredCities', label: 'Preferred Cities (comma-separated)', defaultValue: (extractResult.preferredCities || []).join(', '), placeholder: 'e.g. Houston, Orlando' },
         { key: 'desiredPropertyTypes', label: 'Desired Property Types (comma-separated)', defaultValue: (extractResult.desiredPropertyTypes || []).join(', '), placeholder: 'e.g. Single Family, Multifamily' },
         { key: 'maxBudget', label: 'Max Budget ($)', defaultValue: extractResult.maxBudget ? String(extractResult.maxBudget) : '', placeholder: 'e.g. 1000000', type: 'number' },
+        { key: 'budgetMin', label: 'Min Budget Range ($)', defaultValue: extractResult.budgetMin ? String(extractResult.budgetMin) : '', placeholder: 'e.g. 100000' },
+        { key: 'budgetMax', label: 'Max Budget Range ($)', defaultValue: extractResult.budgetMax ? String(extractResult.budgetMax) : '', placeholder: 'e.g. 900000' },
+        { key: 'unitRangeMin', label: 'Min Unit Count', defaultValue: extractResult.unitRangeMin ? String(extractResult.unitRangeMin) : '', placeholder: 'e.g. 5' },
+        { key: 'unitRangeMax', label: 'Max Unit Count', defaultValue: extractResult.unitRangeMax ? String(extractResult.unitRangeMax) : '', placeholder: 'e.g. 50' },
+        { key: 'investmentStrategy', label: 'Investment Strategy', defaultValue: extractResult.investmentStrategy || '', placeholder: 'e.g. Value-Add Multifamily, BRRRR' },
       ],
       submitText: 'Create Investor',
       onSubmit: async (values) => {
@@ -134,10 +168,30 @@ export default function BuyersListPage() {
             phone: values.phone || '',
             email: values.email || '',
             linkedInUrl: values.linkedInUrl || '',
+            biggerPocketsUrl: values.biggerPocketsUrl || '',
+            facebookUrl: values.facebookUrl || '',
+            twitterUrl: values.twitterUrl || '',
+            instagramUrl: values.instagramUrl || '',
+            zillowUrl: values.zillowUrl || '',
+            redfinUrl: values.redfinUrl || '',
+            realtorUrl: values.realtorUrl || '',
+            propstreamUrl: values.propstreamUrl || '',
+            batchleadsUrl: values.batchleadsUrl || '',
+            connectedInvestorsUrl: values.connectedInvestorsUrl || '',
+            loopnetUrl: values.loopnetUrl || '',
+            crexiUrl: values.crexiUrl || '',
+            sourcePlatform: values.sourcePlatform || 'Manual',
+            buyBoxRaw: values.buyBoxRaw || '',
+            unitRangeMin: values.unitRangeMin ? parseInt(values.unitRangeMin, 10) : null,
+            unitRangeMax: values.unitRangeMax ? parseInt(values.unitRangeMax, 10) : null,
+            budgetMin: values.budgetMin ? parseFloat(values.budgetMin) : null,
+            budgetMax: values.budgetMax ? parseFloat(values.budgetMax) : null,
+            investmentStrategy: values.investmentStrategy || '',
+            aiExtracted: true,
             buyBox: {
               preferredStates: values.preferredStates ? values.preferredStates.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [],
               preferredCities: values.preferredCities ? values.preferredCities.split(',').map(c => c.trim()).filter(Boolean) : [],
-              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family']) as any,
+              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family Residence (SFR)']) as any,
               maxBudget: values.maxBudget ? Number(values.maxBudget) : null,
             },
           })
@@ -212,6 +266,11 @@ export default function BuyersListPage() {
         { key: 'companyName', label: 'Company Name', placeholder: 'e.g. Acme Holdings' },
         { key: 'phone', label: 'Phone Number', placeholder: 'e.g. 555-0199' },
         { key: 'email', label: 'Email Address', placeholder: 'e.g. john@example.com', type: 'email' },
+        { key: 'zillowUrl', label: 'Zillow Profile URL', placeholder: 'e.g. https://www.zillow.com/profile/...' },
+        { key: 'redfinUrl', label: 'Redfin Profile URL', placeholder: 'e.g. https://www.redfin.com/...' },
+        { key: 'realtorUrl', label: 'Realtor.com Profile URL', placeholder: 'e.g. https://www.realtor.com/...' },
+        { key: 'propstreamUrl', label: 'PropStream Link', placeholder: 'PropStream URL...' },
+        { key: 'batchleadsUrl', label: 'BatchLeads Link', placeholder: 'BatchLeads URL...' },
         { key: 'preferredStates', label: 'Preferred States (comma-separated)', placeholder: 'e.g. TX, FL, GA' },
         { key: 'preferredCities', label: 'Preferred Cities (comma-separated)', placeholder: 'e.g. Houston, Orlando' },
         { key: 'desiredPropertyTypes', label: 'Desired Property Types (comma-separated)', placeholder: 'e.g. Single Family, Multifamily' },
@@ -226,10 +285,15 @@ export default function BuyersListPage() {
             phone: values.phone || '',
             email: values.email || '',
             buyerType: 'Cash Buyer',
+            zillowUrl: values.zillowUrl || '',
+            redfinUrl: values.redfinUrl || '',
+            realtorUrl: values.realtorUrl || '',
+            propstreamUrl: values.propstreamUrl || '',
+            batchleadsUrl: values.batchleadsUrl || '',
             buyBox: {
               preferredStates: values.preferredStates ? values.preferredStates.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [],
               preferredCities: values.preferredCities ? values.preferredCities.split(',').map(c => c.trim()).filter(Boolean) : [],
-              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family']) as any,
+              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family Residence (SFR)']) as any,
               maxBudget: values.maxBudget ? Number(values.maxBudget) : null,
             },
           })
@@ -254,10 +318,29 @@ export default function BuyersListPage() {
         { key: 'phone', label: 'Phone Number', placeholder: 'e.g. 555-0188' },
         { key: 'email', label: 'Email Address', placeholder: 'e.g. sarah@investments.com', type: 'email' },
         { key: 'linkedInUrl', label: 'LinkedIn Profile URL', placeholder: 'e.g. https://linkedin.com/in/sarah' },
+        { key: 'biggerPocketsUrl', label: 'BiggerPockets Profile URL', placeholder: 'e.g. https://biggerpockets.com/users/...' },
+        { key: 'facebookUrl', label: 'Facebook URL', placeholder: 'e.g. https://facebook.com/...' },
+        { key: 'twitterUrl', label: 'Twitter / X URL', placeholder: 'e.g. https://x.com/...' },
+        { key: 'instagramUrl', label: 'Instagram URL', placeholder: 'e.g. https://instagram.com/...' },
+        { key: 'connectedInvestorsUrl', label: 'Connected Investors URL', placeholder: 'e.g. https://connectedinvestors.com/member/...' },
+        { key: 'loopnetUrl', label: 'LoopNet Profile URL', placeholder: 'e.g. https://loopnet.com/...' },
+        { key: 'crexiUrl', label: 'Crexi Profile URL', placeholder: 'e.g. https://crexi.com/...' },
+        { key: 'zillowUrl', label: 'Zillow Profile URL', placeholder: 'e.g. https://www.zillow.com/profile/...' },
+        { key: 'redfinUrl', label: 'Redfin Profile URL', placeholder: 'e.g. https://www.redfin.com/...' },
+        { key: 'realtorUrl', label: 'Realtor.com Profile URL', placeholder: 'e.g. https://www.realtor.com/...' },
+        { key: 'propstreamUrl', label: 'PropStream Link', placeholder: 'PropStream URL...' },
+        { key: 'batchleadsUrl', label: 'BatchLeads Link', placeholder: 'BatchLeads URL...' },
+        { key: 'sourcePlatform', label: 'Source Platform', placeholder: 'e.g. Crexi, LoopNet, LinkedIn, BiggerPockets' },
+        { key: 'buyBoxRaw', label: 'Raw Buy Box Text', placeholder: 'Paste raw requirement description...' },
         { key: 'preferredStates', label: 'Preferred States (comma-separated)', placeholder: 'e.g. TX, FL, GA' },
         { key: 'preferredCities', label: 'Preferred Cities (comma-separated)', placeholder: 'e.g. Houston, Orlando' },
         { key: 'desiredPropertyTypes', label: 'Desired Property Types (comma-separated)', placeholder: 'e.g. Single Family, Multifamily' },
         { key: 'maxBudget', label: 'Max Budget ($)', placeholder: 'e.g. 1000000', type: 'number' },
+        { key: 'budgetMin', label: 'Min Budget Range ($)', placeholder: 'e.g. 100000' },
+        { key: 'budgetMax', label: 'Max Budget Range ($)', placeholder: 'e.g. 900000' },
+        { key: 'unitRangeMin', label: 'Min Unit Count', placeholder: 'e.g. 5' },
+        { key: 'unitRangeMax', label: 'Max Unit Count', placeholder: 'e.g. 50' },
+        { key: 'investmentStrategy', label: 'Investment Strategy', placeholder: 'e.g. Value-Add, Buy & Hold' },
       ],
       submitText: 'Create Investor',
       onSubmit: async (values) => {
@@ -268,10 +351,30 @@ export default function BuyersListPage() {
             phone: values.phone || '',
             email: values.email || '',
             linkedInUrl: values.linkedInUrl || '',
+            biggerPocketsUrl: values.biggerPocketsUrl || '',
+            facebookUrl: values.facebookUrl || '',
+            twitterUrl: values.twitterUrl || '',
+            instagramUrl: values.instagramUrl || '',
+            zillowUrl: values.zillowUrl || '',
+            redfinUrl: values.redfinUrl || '',
+            realtorUrl: values.realtorUrl || '',
+            propstreamUrl: values.propstreamUrl || '',
+            batchleadsUrl: values.batchleadsUrl || '',
+            connectedInvestorsUrl: values.connectedInvestorsUrl || '',
+            loopnetUrl: values.loopnetUrl || '',
+            crexiUrl: values.crexiUrl || '',
+            sourcePlatform: values.sourcePlatform || 'Manual',
+            buyBoxRaw: values.buyBoxRaw || '',
+            unitRangeMin: values.unitRangeMin ? parseInt(values.unitRangeMin, 10) : null,
+            unitRangeMax: values.unitRangeMax ? parseInt(values.unitRangeMax, 10) : null,
+            budgetMin: values.budgetMin ? parseFloat(values.budgetMin) : null,
+            budgetMax: values.budgetMax ? parseFloat(values.budgetMax) : null,
+            investmentStrategy: values.investmentStrategy || '',
+            aiExtracted: false,
             buyBox: {
               preferredStates: values.preferredStates ? values.preferredStates.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [],
               preferredCities: values.preferredCities ? values.preferredCities.split(',').map(c => c.trim()).filter(Boolean) : [],
-              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family']) as any,
+              desiredPropertyTypes: (values.desiredPropertyTypes ? values.desiredPropertyTypes.split(',').map(t => t.trim()).filter(Boolean) : ['Single Family Residence (SFR)']) as any,
               maxBudget: values.maxBudget ? Number(values.maxBudget) : null,
             },
           })
@@ -304,6 +407,7 @@ export default function BuyersListPage() {
           <button onClick={triggerAddBuyerModal} className="rounded-2xl bg-[#1A3C34] px-4 py-2 text-sm font-bold text-white">+ Add Buyer</button>
           <button onClick={triggerAddInvestorModal} className="rounded-2xl bg-[#1A3C34] px-4 py-2 text-sm font-bold text-white">+ Add Investor</button>
           <button onClick={() => refresh()} className="rounded-2xl border border-black/10 px-4 py-2 text-sm font-semibold">Refresh</button>
+          <ExportMenu rows={filtered as any} filename="buyers-export" />
         </div>
       </div>
 
@@ -339,7 +443,7 @@ export default function BuyersListPage() {
       {loading && <div className="py-6 text-sm text-[#6B7280]">Loading buyers…</div>}
 
       <div className="rounded-3xl bg-white p-1 shadow-sm">
-        <BuyersTable buyers={filtered} onUpdate={handleUpdate} onDelete={handleDelete} />
+        <BuyersTable buyers={filtered} onUpdate={handleUpdate} onDelete={handleDelete} onOpenDrawer={setSelectedBuyer} />
       </div>
 
       <div className="mt-6 text-xs text-[#6B7280]">
@@ -350,9 +454,10 @@ export default function BuyersListPage() {
       <div className="mt-10">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-sm font-bold uppercase tracking-widest text-[#8A8A8A]">Investors ({data.investors.length})</div>
+          <ExportMenu rows={data.investors as any} filename="investors-export" />
         </div>
         <div className="rounded-3xl bg-white p-1 shadow-sm">
-          <InvestorsTable investors={data.investors} onUpdate={handleUpdateInvestor} onDelete={handleDeleteInvestor} />
+          <InvestorsTable investors={data.investors} onUpdate={handleUpdateInvestor} onDelete={handleDeleteInvestor} onOpenDrawer={setSelectedInvestor} />
         </div>
       </div>
 
@@ -403,6 +508,22 @@ export default function BuyersListPage() {
           <div className="text-sm font-semibold text-slate-800">{toast.message}</div>
           <button onClick={() => setToast(null)} className="ml-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
         </div>
+      )}
+
+      {selectedBuyer && (
+        <BuyerDrawer
+          buyer={selectedBuyer}
+          onClose={() => setSelectedBuyer(null)}
+          onUpdate={handleUpdate}
+        />
+      )}
+
+      {selectedInvestor && (
+        <InvestorDrawer
+          investor={selectedInvestor}
+          onClose={() => setSelectedInvestor(null)}
+          onUpdate={handleUpdateInvestor}
+        />
       )}
     </AppLayout>
   )
