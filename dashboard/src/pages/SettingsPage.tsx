@@ -1,100 +1,72 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { api } from '../api/client';
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<'integrations' | 'sources' | 'profile'>('integrations');
+  const [activeSection, setActiveSection] = useState<'sources' | 'integrations' | 'prefs'>('sources');
 
-  // Integrations states
-  const [deepSeekKey, setDeepSeekKey] = useState('');
-  const [geminiKey, setGeminiKey] = useState('');
-  const [openAiKey, setOpenAiKey] = useState('');
-  const [resendKey, setResendKey] = useState('');
-  const [resendFrom, setResendFrom] = useState('');
+  // Data Sources Preferences
+  const [zillowActive, setZillowActive] = useState(true);
+  const [craigslistActive, setCraigslistActive] = useState(true);
+  const [facebookActive, setFacebookActive] = useState(false);
+  const [propStreamActive, setPropStreamActive] = useState(true);
+  const [batchLeadsActive, setBatchLeadsActive] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState('24h');
 
-  // Sources states
-  const [scrapeHeadless, setScrapeHeadless] = useState(true);
-  const [fbEmail, setFbEmail] = useState('');
-  const [fbPassword, setFbPassword] = useState('');
-  const [batchEmail, setBatchEmail] = useState('');
-  const [batchPassword, setBatchPassword] = useState('');
+  // Integrations Settings
+  const [aiMode, setAiMode] = useState('standard');
+  const [enableEmailAlerts, setEnableEmailAlerts] = useState(true);
 
-  // Profile states
-  const [userName, setUserName] = useState('Peter O\'Connor');
+  // User Profile Preferences
+  const [userName, setUserName] = useState("Peter O'Connor");
   const [userEmail, setUserEmail] = useState('peter@sadarproperties.com');
-  const [avatarUrl, setAvatarUrl] = useState('');
+  const [timeZone, setTimeZone] = useState('America/New_York');
 
   // Success indicator
   const [saved, setSaved] = useState(false);
 
-  // Load configuration from local mock storage or config values
+  // Load configuration from local storage
   useEffect(() => {
-    // Fill in placeholders or load from localStorage
-    setDeepSeekKey(localStorage.getItem('settings_deepseek_key') || 'sk-e0a49806b137****************');
-    setGeminiKey(localStorage.getItem('settings_gemini_key') || 'AQ.Ab8RN6JxyZfP****************');
-    setOpenAiKey(localStorage.getItem('settings_openai_key') || 'sk-proj-eI8C8NosFEd****************');
-    setResendKey(localStorage.getItem('settings_resend_key') || 're_123456789****************');
-    setResendFrom(localStorage.getItem('settings_resend_from') || 'Sadar Properties <deals@sadarproperties.com>');
+    setZillowActive(localStorage.getItem('pref_zillow_active') !== 'false');
+    setCraigslistActive(localStorage.getItem('pref_craigslist_active') !== 'false');
+    setFacebookActive(localStorage.getItem('pref_facebook_active') === 'true');
+    setPropStreamActive(localStorage.getItem('pref_propstream_active') !== 'false');
+    setBatchLeadsActive(localStorage.getItem('pref_batchleads_active') === 'true');
+    setRefreshInterval(localStorage.getItem('pref_refresh_interval') || '24h');
 
-    setFbEmail(localStorage.getItem('settings_fb_email') || 'Propertiesbysardar@gmail.com');
-    setFbPassword(localStorage.getItem('settings_fb_password') || '••••••••••••');
-    setBatchEmail(localStorage.getItem('settings_batch_email') || 'Propertiesbysardar@gmail.com');
-    setBatchPassword(localStorage.getItem('settings_batch_password') || '••••••••••••');
+    setAiMode(localStorage.getItem('pref_ai_mode') || 'standard');
+    setEnableEmailAlerts(localStorage.getItem('pref_email_alerts') !== 'false');
 
-    const profileName = localStorage.getItem('profile_name') || 'Peter O\'Connor';
-    const profileEmail = localStorage.getItem('profile_email') || 'peter@sadarproperties.com';
-    setUserName(profileName);
-    setUserEmail(profileEmail);
+    setUserName(localStorage.getItem('profile_name') || "Peter O'Connor");
+    setUserEmail(localStorage.getItem('profile_email') || 'peter@sadarproperties.com');
+    setTimeZone(localStorage.getItem('profile_timezone') || 'America/New_York');
   }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('settings_deepseek_key', deepSeekKey);
-    localStorage.setItem('settings_gemini_key', geminiKey);
-    localStorage.setItem('settings_openai_key', openAiKey);
-    localStorage.setItem('settings_resend_key', resendKey);
-    localStorage.setItem('settings_resend_from', resendFrom);
+    localStorage.setItem('pref_zillow_active', String(zillowActive));
+    localStorage.setItem('pref_craigslist_active', String(craigslistActive));
+    localStorage.setItem('pref_facebook_active', String(facebookActive));
+    localStorage.setItem('pref_propstream_active', String(propStreamActive));
+    localStorage.setItem('pref_batchleads_active', String(batchLeadsActive));
+    localStorage.setItem('pref_refresh_interval', refreshInterval);
 
-    localStorage.setItem('settings_fb_email', fbEmail);
-    localStorage.setItem('settings_fb_password', fbPassword);
-    localStorage.setItem('settings_batch_email', batchEmail);
-    localStorage.setItem('settings_batch_password', batchPassword);
+    localStorage.setItem('pref_ai_mode', aiMode);
+    localStorage.setItem('pref_email_alerts', String(enableEmailAlerts));
 
     localStorage.setItem('profile_name', userName);
     localStorage.setItem('profile_email', userEmail);
+    localStorage.setItem('profile_timezone', timeZone);
 
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleResetDb = async () => {
-    if (confirm('Are you sure you want to clear the entire database? This will remove all properties, buyers, sellers, and investors. This action is irreversible.')) {
-      try {
-        await api.clearDb();
-        alert('Database cleared successfully! The page will now reload.');
-        window.location.reload();
-      } catch (err) {
-        alert('Failed to clear database');
-      }
-    }
-  };
-
   return (
     <AppLayout title="Settings">
       <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Left Side: Navigation Links */}
+        {/* Left Navigation Menu */}
         <div className="w-full lg:w-64 shrink-0">
           <div className="rounded-3xl border border-black/5 bg-white p-3 shadow-sm flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
-            <button
-              onClick={() => setActiveSection('integrations')}
-              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition duration-150 w-full shrink-0 ${
-                activeSection === 'integrations'
-                  ? 'bg-[#1A3C34]/10 text-[#1A3C34]'
-                  : 'text-slate-550 hover:bg-black/5'
-              }`}
-            >
-              🔌 Integrations & API Keys
-            </button>
             <button
               onClick={() => setActiveSection('sources')}
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition duration-150 w-full shrink-0 ${
@@ -103,172 +75,174 @@ export default function SettingsPage() {
                   : 'text-slate-550 hover:bg-black/5'
               }`}
             >
-              🕸️ Data Scrapers
+              🕸️ Data Sources
             </button>
             <button
-              onClick={() => setActiveSection('profile')}
+              onClick={() => setActiveSection('integrations')}
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition duration-150 w-full shrink-0 ${
-                activeSection === 'profile'
+                activeSection === 'integrations'
                   ? 'bg-[#1A3C34]/10 text-[#1A3C34]'
                   : 'text-slate-550 hover:bg-black/5'
               }`}
             >
-              👤 User Profile
+              🔌 Integrations
+            </button>
+            <button
+              onClick={() => setActiveSection('prefs')}
+              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition duration-150 w-full shrink-0 ${
+                activeSection === 'prefs'
+                  ? 'bg-[#1A3C34]/10 text-[#1A3C34]'
+                  : 'text-slate-550 hover:bg-black/5'
+              }`}
+            >
+              👤 User Preferences
             </button>
           </div>
         </div>
 
-        {/* Right Side: Tab Forms */}
+        {/* Right Content Panels */}
         <div className="flex-1">
           <form onSubmit={handleSave} className="rounded-3xl border border-black/5 bg-white p-6 shadow-sm">
             {saved && (
               <div className="mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/15 p-4 text-xs font-bold text-emerald-700 flex justify-between items-center">
-                <span>✓ Configuration saved successfully! Changes are applied.</span>
+                <span>✓ Configuration updated successfully.</span>
                 <button type="button" onClick={() => setSaved(false)}>✕</button>
+              </div>
+            )}
+
+            {/* DATA SOURCES SECTION */}
+            {activeSection === 'sources' && (
+              <div>
+                <h3 className="text-base font-bold text-[#1A3C34] mb-1">Data Feed Channels</h3>
+                <p className="text-xs text-slate-550 mb-6">Choose platforms to monitor for wholesale leads and schedule ingest cycles.</p>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">Zillow Feed</p>
+                      <p className="text-[10px] text-slate-450">Scan for active single-family properties.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={zillowActive}
+                      onChange={e => setZillowActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">Craigslist Feed</p>
+                      <p className="text-[10px] text-slate-450">Scan for direct-by-owner motivated listings.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={craigslistActive}
+                      onChange={e => setCraigslistActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">Facebook Marketplace</p>
+                      <p className="text-[10px] text-slate-450">Scan local groups for off-market wholesale deals.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={facebookActive}
+                      onChange={e => setFacebookActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">PropStream Feed</p>
+                      <p className="text-[10px] text-slate-450">Import pre-foreclosures and absentee data lists.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={propStreamActive}
+                      onChange={e => setPropStreamActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">BatchLeads Integration</p>
+                      <p className="text-[10px] text-slate-450">Automatically import phone and contact skip-traces.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={batchLeadsActive}
+                      onChange={e => setBatchLeadsActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="border-t border-black/5 pt-4">
+                    <label className="block text-xs font-bold text-slate-550 uppercase mb-1.5">Refresh Frequency</label>
+                    <select
+                      value={refreshInterval}
+                      onChange={e => setRefreshInterval(e.target.value)}
+                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
+                    >
+                      <option value="12h">Twice Daily (Every 12 hours)</option>
+                      <option value="24h">Daily (Every 24 hours)</option>
+                      <option value="48h">Every 2 Days (Every 48 hours)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             )}
 
             {/* INTEGRATIONS SECTION */}
             {activeSection === 'integrations' && (
               <div>
-                <h3 className="text-base font-bold text-[#1A3C34] mb-1">Integrations & LLM Settings</h3>
-                <p className="text-xs text-slate-500 mb-6">Manage external API credentials for automated messaging and AI buy box extraction.</p>
+                <h3 className="text-base font-bold text-[#1A3C34] mb-1">External Integrations</h3>
+                <p className="text-xs text-slate-550 mb-6">Manage settings for automated platforms and communication tools.</p>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">DeepSeek API Key (Primary LLM)</label>
-                    <input
-                      type="password"
-                      value={deepSeekKey}
-                      onChange={e => setDeepSeekKey(e.target.value)}
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none focus:border-[#1A3C34]"
-                    />
+                    <label className="block text-xs font-bold text-slate-550 uppercase mb-1.5">AI Buy Box Extraction Engine</label>
+                    <select
+                      value={aiMode}
+                      onChange={e => setAiMode(e.target.value)}
+                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
+                    >
+                      <option value="fast">Fast AI Extraction Mode (Low Latency)</option>
+                      <option value="standard">Standard Balanced Extraction Mode</option>
+                      <option value="deep">Deep Analysis Extraction Mode (Maximum Accuracy)</option>
+                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">Gemini API Key (Fallback)</label>
-                    <input
-                      type="password"
-                      value={geminiKey}
-                      onChange={e => setGeminiKey(e.target.value)}
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none focus:border-[#1A3C34]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">OpenAI API Key (Secondary Fallback)</label>
-                    <input
-                      type="password"
-                      value={openAiKey}
-                      onChange={e => setOpenAiKey(e.target.value)}
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none focus:border-[#1A3C34]"
-                    />
-                  </div>
-
-                  <div className="border-t border-black/5 pt-4">
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">Resend API Key (Email Delivery)</label>
-                    <input
-                      type="password"
-                      value={resendKey}
-                      onChange={e => setResendKey(e.target.value)}
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none focus:border-[#1A3C34]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">Sender Email Address (Resend Verified Domain)</label>
-                    <input
-                      type="text"
-                      value={resendFrom}
-                      onChange={e => setResendFrom(e.target.value)}
-                      placeholder="e.g. Deals <deals@yourdomain.com>"
-                      className="w-full rounded-2xl border border-black/10 bg-slate-550/5 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none focus:border-[#1A3C34]"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* SCRAPERS SECTION */}
-            {activeSection === 'sources' && (
-              <div>
-                <h3 className="text-base font-bold text-[#1A3C34] mb-1">Data Scraper Configurations</h3>
-                <p className="text-xs text-slate-500 mb-6">Setup automation parameters for discovery scraping across major networks.</p>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5 mt-4">
                     <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">Run Browser Headless</p>
-                      <p className="text-[10px] text-slate-450">Runs scrapers in background without opening browser window UI.</p>
+                      <p className="text-xs font-bold text-[#1A3C34]">Automated Email Notifications</p>
+                      <p className="text-[10px] text-slate-450">Alert buyer contacts instantly when properties match their criteria.</p>
                     </div>
                     <input
                       type="checkbox"
-                      checked={scrapeHeadless}
-                      onChange={e => setScrapeHeadless(e.target.checked)}
-                      className="h-4 w-4 text-[#1A3C34] rounded"
+                      checked={enableEmailAlerts}
+                      onChange={e => setEnableEmailAlerts(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
                     />
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-450 uppercase mb-2">Facebook Login Details (Auto Group Scanning)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] text-slate-450 mb-0.5">FB Account Email</label>
-                        <input
-                          type="text"
-                          value={fbEmail}
-                          onChange={e => setFbEmail(e.target.value)}
-                          className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-450 mb-0.5">FB Password</label>
-                        <input
-                          type="password"
-                          value={fbPassword}
-                          onChange={e => setFbPassword(e.target.value)}
-                          className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-black/5 pt-4">
-                    <h4 className="text-xs font-bold text-slate-450 uppercase mb-2">BatchLeads Login Credentials</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] text-slate-450 mb-0.5">Account Email</label>
-                        <input
-                          type="text"
-                          value={batchEmail}
-                          onChange={e => setBatchEmail(e.target.value)}
-                          className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-450 mb-0.5">Account Password</label>
-                        <input
-                          type="password"
-                          value={batchPassword}
-                          onChange={e => setBatchPassword(e.target.value)}
-                          className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
-                        />
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* USER PROFILE SECTION */}
-            {activeSection === 'profile' && (
+            {/* USER PREFERENCES SECTION */}
+            {activeSection === 'prefs' && (
               <div>
-                <h3 className="text-base font-bold text-[#1A3C34] mb-1">User Profile Preferences</h3>
-                <p className="text-xs text-slate-500 mb-6">Edit personal information, change avatars, and perform system actions.</p>
+                <h3 className="text-base font-bold text-[#1A3C34] mb-1">User Profile & Prefs</h3>
+                <p className="text-xs text-slate-550 mb-6">Customize contact information and regional settings.</p>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">Full Name</label>
+                    <label className="block text-xs font-bold text-slate-550 uppercase mb-1">Full Name</label>
                     <input
                       type="text"
                       value={userName}
@@ -278,7 +252,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">Email Address</label>
+                    <label className="block text-xs font-bold text-slate-550 uppercase mb-1">Email Address</label>
                     <input
                       type="email"
                       value={userEmail}
@@ -288,39 +262,24 @@ export default function SettingsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-450 uppercase mb-1">Custom Avatar URL (Optional)</label>
-                    <input
-                      type="text"
-                      value={avatarUrl}
-                      onChange={e => setAvatarUrl(e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
+                    <label className="block text-xs font-bold text-slate-550 uppercase mb-1">Dashboard Timezone</label>
+                    <select
+                      value={timeZone}
+                      onChange={e => setTimeZone(e.target.value)}
                       className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-sm text-[#1A3C34] focus:outline-none"
-                    />
-                  </div>
-
-                  {/* System Administration actions */}
-                  <div className="border-t border-red-100 pt-6 mt-6">
-                    <h4 className="text-xs font-bold text-rose-600 uppercase mb-2">Danger Zone</h4>
-                    <div className="rounded-2xl border border-red-200 bg-rose-50/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-bold text-slate-800">Clear Database Storage</p>
-                        <p className="text-[10px] text-slate-500">Deletes all leads, matches, communications, and logs.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleResetDb}
-                        className="rounded-2xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition"
-                      >
-                        Reset Database
-                      </button>
-                    </div>
+                    >
+                      <option value="America/New_York">Eastern Time (ET)</option>
+                      <option value="America/Chicago">Central Time (CT)</option>
+                      <option value="America/Denver">Mountain Time (MT)</option>
+                      <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                    </select>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Submit Footer */}
-            <div className="mt-8 border-t border-black/5 pt-4 flex justify-end gap-2">
+            {/* Footer Buttons */}
+            <div className="mt-8 border-t border-black/5 pt-4 flex justify-end">
               <button
                 type="submit"
                 className="rounded-2xl bg-[#1A3C34] px-6 py-3 text-xs font-bold text-white hover:bg-[#1A3C34]/95 transition"

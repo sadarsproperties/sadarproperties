@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import net from 'net';
 
 let QueueClass, WorkerClass;
 let useRedis = false;
@@ -87,13 +88,57 @@ class InMemoryQueue {
 
 const memoryQueue = new InMemoryQueue('rewip-tasks');
 
+function checkRedisConnection(redisUrl) {
+  return new Promise((resolve) => {
+    try {
+      const cleanUrl = redisUrl.replace('redis://', '');
+      const withoutCreds = cleanUrl.split('@').pop() || '';
+      const [hostPart, portPart] = withoutCreds.split(':');
+      const host = hostPart || '127.0.0.1';
+      const port = parseInt(portPart || '6379', 10);
+
+      const socket = new net.Socket();
+      socket.setTimeout(800);
+
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+
+      socket.once('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+
+      socket.once('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+
+      socket.connect(port, host);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
 export async function initQueue() {
+  const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+  const isRedisOpen = await checkRedisConnection(redisUrl);
+
+  if (!isRedisOpen) {
+    console.warn('⚠️ Redis port is not listening. Falling back to robust in-memory Task Queue immediately.');
+    useRedis = false;
+    setupWorkers();
+    setupCronJobs();
+    return;
+  }
+
   try {
     const bullmq = await import('bullmq');
     QueueClass = bullmq.Queue;
     WorkerClass = bullmq.Worker;
     
-    const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
     console.log(`[Queue] Connecting to Redis at: ${redisUrl}`);
     
     bullQueue = new QueueClass('rewip-tasks', {
@@ -106,7 +151,7 @@ export async function initQueue() {
     useRedis = true;
     console.log('🚀 Task Queue initialized successfully using BullMQ + Redis.');
   } catch (err) {
-    console.warn('⚠️ BullMQ/Redis not available. Falling back to robust in-memory Task Queue.', err.message);
+    console.warn('⚠️ BullMQ/Redis initialization failed. Falling back to robust in-memory Task Queue.', err.message);
     useRedis = false;
   }
 

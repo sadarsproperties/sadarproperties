@@ -11,15 +11,57 @@ export class BaseScraper {
 
   async connect() {
     const { chromium } = await import('playwright');
-    this.browser = await chromium.launch({
-      headless: true,
+    
+    const headless = process.env.SCRAPER_HEADLESS !== 'false';
+    const launchOptions = {
+      headless,
       args: [
         '--disable-blink-features=AutomationControlled',
-        '--use-fake-device-for-media-stream'
+        '--use-fake-device-for-media-stream',
+        '--disable-web-security',
+        '--allow-running-insecure-content'
       ]
-    });
+    };
+
+    // Integrate proxy rotation credentials if configured
+    const proxyServer = process.env.SCRAPER_PROXY_SERVER;
+    if (proxyServer) {
+      console.log(`[BaseScraper] Launching browser context using proxy: ${proxyServer}`);
+      launchOptions.proxy = {
+        server: proxyServer
+      };
+      
+      const proxyUser = process.env.SCRAPER_PROXY_USERNAME;
+      const proxyPass = process.env.SCRAPER_PROXY_PASSWORD;
+      if (proxyUser && proxyPass) {
+        launchOptions.proxy.username = proxyUser;
+        launchOptions.proxy.password = proxyPass;
+      }
+    }
+
+    this.browser = await chromium.launch(launchOptions);
+    
+    // Rotate User Agents to avoid static signature flagging
+    const userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0'
+    ];
+    const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
     this.context = await this.browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      userAgent: randomUserAgent,
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      isMobile: false
+    });
+
+    // Mask the automation navigator flag
+    await this.context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+      });
     });
   }
 
