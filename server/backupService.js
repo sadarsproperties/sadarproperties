@@ -17,13 +17,18 @@ export async function runDatabaseBackup() {
   const filename = `backup-${timestamp}.sql`;
   const filePath = path.join(backupDir, filename);
 
-  const dbUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/sadar';
-  
-  // Exclude password prompt in pg_dump commands
-  const cmd = `pg_dump "${dbUrl}" -F p -f "${filePath}"`;
+  // Read individual connection parameters instead of parsing raw URL strings
+  const host = process.env.PGHOST || 'localhost';
+  const port = process.env.PGPORT || '6543';
+  const user = process.env.PGUSER || 'postgres';
+  const password = process.env.PGPASSWORD || '';
+  const database = process.env.PGDATABASE || 'postgres';
+
+  const cmd = `pg_dump -h "${host}" -p "${port}" -U "${user}" -d "${database}" -F p -f "${filePath}"`;
 
   return new Promise((resolve) => {
-    exec(cmd, (err, stdout, stderr) => {
+    // Pass password securely through pg_dump child environment context
+    exec(cmd, { env: { ...process.env, PGPASSWORD: password } }, (err, stdout, stderr) => {
       if (err) {
         console.error('[BackupService] Automated backup via pg_dump failed:', err.message);
         // Fallback placeholder to satisfy audit requirements

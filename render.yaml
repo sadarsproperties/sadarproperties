@@ -4,13 +4,19 @@ services:
     name: sadarproperties-api
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && npx playwright install chromium
     startCommand: npm run server
     envVars:
       - key: PORT
         value: 10000
       - key: NODE_ENV
         value: production
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/project/src/.cache/ms-playwright
+      - key: REDIS_URL
+        fromRedis:
+          name: sadarproperties-redis
+          property: connectionString
       # These variables will prompt you to enter them when importing the Blueprint
       - key: PGHOST
         sync: false
@@ -52,3 +58,9 @@ services:
           name: https://sadarproperties-api.onrender.com
           type: web
           property: url
+
+# 3. Redis Service
+redis:
+  - name: sadarproperties-redis
+    plan: free
+    ipAllowList: []
