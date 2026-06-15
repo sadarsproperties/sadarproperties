@@ -61,4 +61,5 @@ services:
   - type: redis
     name: sadarproperties-redis
     plan: free
+    maxmemoryPolicy: noeviction
     ipAllowList: []
