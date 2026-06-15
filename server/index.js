@@ -1,4 +1,18 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
+
+try {
+  const srcPath = '/home/user/.cache/sadar_properties_app_icon_transparent.png';
+  const destPath = path.join(process.cwd(), 'sadar_properties_app_icon_transparent.png');
+  if (fs.existsSync(srcPath)) {
+    fs.copyFileSync(srcPath, destPath);
+    console.log('[Startup] Successfully copied transparent app icon to workspace!');
+  }
+} catch (err) {
+  console.error('[Startup] Failed to copy transparent app icon:', err.message);
+}
+
 import cors from 'cors';
 import express from 'express';
 import cookieParser from 'cookie-parser';
