@@ -454,3 +454,51 @@ class AdapterRegistry {
 }
 
 export const registry = new AdapterRegistry();
+
+export async function runScrapeTask(data) {
+  const { source, url, filters } = data || {};
+  if (!source) {
+    throw new Error('runScrapeTask: Missing source parameter');
+  }
+
+  console.log(`[runScrapeTask] Running background scrape task for source: ${source}`);
+  
+  // Dynamically load scraper classes to prevent circular dependency
+  const scraperClasses = await import('../scrapers/scraperClasses.js');
+  let scraper;
+
+  const lowerSource = source.toLowerCase();
+  if (lowerSource === 'zillow') {
+    scraper = new scraperClasses.ZillowScraper();
+  } else if (lowerSource === 'craigslist') {
+    scraper = new scraperClasses.CraigslistScraper();
+  } else if (lowerSource === 'facebook' || lowerSource === 'facebook marketplace') {
+    scraper = new scraperClasses.FacebookScraper();
+  } else if (lowerSource === 'propstream') {
+    scraper = new scraperClasses.PropStreamScraper();
+  } else if (lowerSource === 'batchleads') {
+    scraper = new scraperClasses.BatchLeadsScraper();
+  } else {
+    throw new Error(`runScrapeTask: No scraper class registered for source "${source}"`);
+  }
+
+  // 1. Scrape raw items
+  const rawItems = await scraper.scrape({ url, ...filters });
+  console.log(`[runScrapeTask] Successfully scraped ${rawItems.length} raw items from ${source}`);
+
+  // 2. Normalize and save items with rate limiting delay
+  let count = 0;
+  for (const item of rawItems) {
+    // Rate limit delay between requests/processes
+    await scraper.delay();
+    
+    const normalized = await scraper.normalize(item);
+    const saved = await scraper.save(normalized);
+    if (saved) {
+      count++;
+    }
+  }
+
+  console.log(`[runScrapeTask] Completed scraping task for ${source}. Saved/updated ${count} records.`);
+  return { success: true, count };
+}

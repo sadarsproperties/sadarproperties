@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../hooks/useStore'
 import { BuyersTable, InvestorsTable } from '../components/ContactTables'
@@ -14,8 +14,25 @@ export default function BuyersListPage() {
   const navigate = useNavigate()
   const { data, refresh, loading } = useStore()
   const [filter, setFilter] = useState<'all' | Buyer['buyerType']>('all')
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('q') || '')
   const [selectedBuyer, setSelectedBuyer] = useState<Buyer | null>(null)
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null)
+
+  const queryParam = new URLSearchParams(window.location.search).get('q') || ''
+  useEffect(() => {
+    setSearch(queryParam)
+  }, [queryParam])
+
+  useEffect(() => {
+    if (window.location.hash === '#investors') {
+      setTimeout(() => {
+        const el = document.getElementById('investors')
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 300)
+    }
+  }, [window.location.hash, loading])
 
   // AI Buy Box Extractor state
   const [extractInput, setExtractInput] = useState('')
@@ -208,9 +225,41 @@ export default function BuyersListPage() {
     })
   }
 
-  const filtered = filter === 'all'
-    ? data.buyers
-    : data.buyers.filter(b => b.buyerType === filter)
+  const filtered = useMemo(() => {
+    let list = filter === 'all'
+      ? data.buyers
+      : data.buyers.filter(b => b.buyerType === filter)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(b =>
+        (b.fullName || '').toLowerCase().includes(q) ||
+        (b.companyName || '').toLowerCase().includes(q) ||
+        (b.phone || '').toLowerCase().includes(q) ||
+        (b.email || '').toLowerCase().includes(q) ||
+        (Array.isArray(b.buyBox?.preferredStates) && b.buyBox.preferredStates.some((s: string) => s.toLowerCase().includes(q))) ||
+        (Array.isArray(b.buyBox?.preferredCities) && b.buyBox.preferredCities.some((c: string) => c.toLowerCase().includes(q))) ||
+        (Array.isArray(b.buyBox?.desiredPropertyTypes) && b.buyBox.desiredPropertyTypes.some((t: string) => t.toLowerCase().includes(q)))
+      )
+    }
+    return list
+  }, [filter, data.buyers, search])
+
+  const filteredInvestors = useMemo(() => {
+    let list = data.investors
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(i =>
+        (i.investorName || '').toLowerCase().includes(q) ||
+        (i.companyName || '').toLowerCase().includes(q) ||
+        (i.phone || '').toLowerCase().includes(q) ||
+        (i.email || '').toLowerCase().includes(q) ||
+        (Array.isArray(i.buyBox?.preferredStates) && i.buyBox.preferredStates.some((s: string) => s.toLowerCase().includes(q))) ||
+        (Array.isArray(i.buyBox?.preferredCities) && i.buyBox.preferredCities.some((c: string) => c.toLowerCase().includes(q))) ||
+        (Array.isArray(i.buyBox?.desiredPropertyTypes) && i.buyBox.desiredPropertyTypes.some((t: string) => t.toLowerCase().includes(q)))
+      )
+    }
+    return list
+  }, [data.investors, search])
 
   async function handleUpdate(buyer: Buyer) {
     await api.updateBuyer(buyer.id, buyer)
@@ -390,23 +439,31 @@ export default function BuyersListPage() {
 
   return (
     <AppLayout title="Cash Buyers & Investors" showBack onBack={() => navigate('/dashboard')}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-3xl border border-black/5 shadow-sm">
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#8A8A8A] mr-2">Filter Type:</span>
           {(['all', 'Cash Buyer', 'Fix & Flip', 'Buy & Hold', 'Multifamily Buyer', 'Commercial Buyer'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f as any)}
-              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${filter === f ? 'border-[#1A3C34] bg-[#1A3C34] text-white' : 'border-black/10 bg-white hover:bg-black/5'}`}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${filter === f ? 'border-[#1A3C34] bg-[#1A3C34] text-white' : 'border-black/10 bg-white hover:bg-black/5'}`}
             >
               {f === 'all' ? 'All' : f}
             </button>
           ))}
         </div>
 
-        <div className="flex gap-2">
-          <button onClick={triggerAddBuyerModal} className="rounded-2xl bg-[#1A3C34] px-4 py-2 text-sm font-bold text-white">+ Add Buyer</button>
-          <button onClick={triggerAddInvestorModal} className="rounded-2xl bg-[#1A3C34] px-4 py-2 text-sm font-bold text-white">+ Add Investor</button>
-          <button onClick={() => refresh()} className="rounded-2xl border border-black/10 px-4 py-2 text-sm font-semibold">Refresh</button>
+        <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search buyers, states, cities..."
+            className="rounded-2xl border border-black/10 px-4 py-2 text-sm outline-none focus:border-[#1A3C34] bg-[#F9F6F1] w-full md:w-64"
+          />
+          <button onClick={triggerAddBuyerModal} className="rounded-2xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-4 py-2 text-sm font-bold text-white transition">+ Buyer</button>
+          <button onClick={triggerAddInvestorModal} className="rounded-2xl bg-[#10B981] hover:bg-[#059669] px-4 py-2 text-sm font-bold text-white transition">+ Investor</button>
+          <button onClick={() => refresh()} className="rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold hover:bg-black/5">Refresh</button>
           <ExportMenu rows={filtered as any} filename="buyers-export" />
         </div>
       </div>
@@ -451,13 +508,13 @@ export default function BuyersListPage() {
       </div>
 
       {/* Investors section */}
-      <div className="mt-10">
+      <div id="investors" className="mt-10 scroll-mt-20">
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-sm font-bold uppercase tracking-widest text-[#8A8A8A]">Investors ({data.investors.length})</div>
-          <ExportMenu rows={data.investors as any} filename="investors-export" />
+          <div className="text-sm font-bold uppercase tracking-widest text-[#8A8A8A]">Investors ({filteredInvestors.length})</div>
+          <ExportMenu rows={filteredInvestors as any} filename="investors-export" />
         </div>
         <div className="rounded-3xl bg-white p-1 shadow-sm">
-          <InvestorsTable investors={data.investors} onUpdate={handleUpdateInvestor} onDelete={handleDeleteInvestor} onOpenDrawer={setSelectedInvestor} />
+          <InvestorsTable investors={filteredInvestors} onUpdate={handleUpdateInvestor} onDelete={handleDeleteInvestor} onOpenDrawer={setSelectedInvestor} />
         </div>
       </div>
 

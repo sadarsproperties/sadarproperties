@@ -132,13 +132,15 @@ export function PropertyDrawer({
   };
 
   const matchExportRows = matches.map((match) => ({
-    name: match.name,
-    company: match.companyName,
-    phone: match.phone,
-    email: match.email,
-    type: match.type,
-    buyerType: match.buyerType ?? '',
-    linkedIn: match.linkedInUrl ?? '',
+    'Property Address': property.address,
+    'Property Price ($)': property.price,
+    'Match Score (%)': match.score ?? 0,
+    'Contact Name': match.name,
+    'Company Name': match.companyName || '',
+    'Contact Type': match.type === 'Buyer' ? `Buyer (${match.buyerType || 'General'})` : 'Investor',
+    'Phone': match.phone || '',
+    'Email': match.email || '',
+    'LinkedIn': match.linkedInUrl || '',
   }));
 
   const dealTier = getDealScoreTier(activeTab === 'analyzer' ? analyzerOutputs.dealScore : metrics.dealScore);
@@ -379,6 +381,53 @@ export function PropertyDrawer({
                     <p className="text-slate-400">{seller.mailingAddress}</p>
                   </div>
                 )}
+              </section>
+
+              {/* CRM History, Freshness and original source listing links */}
+              <section className="border-t border-slate-800 pt-5 space-y-3">
+                <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider text-amber-500">CRM History & Freshness</h3>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 space-y-3">
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span>Data Source: <strong className="text-slate-200">{property.source || 'Manual/API'}</strong></span>
+                    <span>Freshness: <strong className="text-emerald-400">Active (Updated {new Date(property.updatedAt || new Date()).toLocaleDateString()})</strong></span>
+                  </div>
+                  {property.sourceUrl && (
+                    <div className="text-xs">
+                      <a href={property.sourceUrl} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">
+                        🔗 View Original Source Listing
+                      </a>
+                    </div>
+                  )}
+                  <div className="border-t border-slate-800 pt-3 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Communication & Stage Log</p>
+                    <div className="space-y-2 pl-2 border-l border-slate-800">
+                      <div className="relative pl-4 text-xs">
+                        <div className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-sky-500" />
+                        <span className="font-bold text-slate-300">Lead Created: </span>
+                        <span className="text-slate-400">{new Date(property.createdAt || new Date()).toLocaleDateString()}</span>
+                      </div>
+                      {property.lastContactDate && (
+                        <div className="relative pl-4 text-xs">
+                          <div className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-emerald-500" />
+                          <span className="font-bold text-slate-300">Seller Contacted: </span>
+                          <span className="text-slate-400">{new Date(property.lastContactDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {property.followUpDate && (
+                        <div className="relative pl-4 text-xs">
+                          <div className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-amber-500" />
+                          <span className="font-bold text-slate-300">Follow-up Callback Scheduled: </span>
+                          <span className="text-slate-400">{new Date(property.followUpDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      <div className="relative pl-4 text-xs">
+                        <div className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-slate-500" />
+                        <span className="font-bold text-slate-300">Current Stage: </span>
+                        <span className="text-slate-450 uppercase tracking-wider">{property.status || 'New'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </section>
 
               <section className="border-t border-slate-800 pt-5">

@@ -59,40 +59,40 @@ function PropertyCard({
   const score = property.dealScore ?? null;
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 flex flex-col justify-between hover:border-slate-700 transition">
+    <div className="rounded-3xl border border-black/5 bg-white p-5 flex flex-col justify-between hover:border-black/10 hover:shadow-md transition duration-300">
       <div>
         {/* Header: Score & Address */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h4 className="font-bold text-slate-100 text-sm">{property.address}</h4>
-            <p className="text-xs text-slate-400">{property.city}, {property.state}</p>
+            <h4 className="font-extrabold text-[#1A3C34] text-sm">{property.address}</h4>
+            <p className="text-xs text-[#5A6672]">{property.city}, {property.state}</p>
           </div>
           {score !== null ? (
-            <span className={`rounded-xl px-2 py-0.5 text-[10px] font-black tracking-wide ${
+            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wide ${
               score >= 70
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
                 : score >= 50
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                : 'bg-slate-850 text-slate-400 border border-slate-800'
+                ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                : 'bg-slate-100 text-slate-500 border border-slate-200'
             }`}>
               SCORE {score}
             </span>
           ) : (
-            <span className="rounded-xl bg-slate-850 px-2 py-0.5 text-[10px] text-slate-500 border border-slate-800">N/A</span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] text-slate-400 border border-slate-200">N/A</span>
           )}
         </div>
 
         {/* Price */}
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-xs text-slate-500 font-bold uppercase">Price:</span>
-          <span className="text-sm font-extrabold text-slate-200">{formatCurrency(property.price)}</span>
+          <span className="text-xs text-slate-450 font-bold uppercase tracking-wider">Price:</span>
+          <span className="text-base font-black text-[#1A3C34]">{formatCurrency(property.price)}</span>
         </div>
 
         {/* Category tags */}
         {property.leadCategories && property.leadCategories.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1">
             {property.leadCategories.map(cat => (
-              <span key={cat} className="rounded-lg bg-slate-950 px-2 py-0.5 text-[10px] text-slate-400 border border-slate-800">
+              <span key={cat} className="rounded-lg bg-[#1A3C34]/5 px-2 py-0.5 text-[10px] font-semibold text-[#1A3C34] border border-[#1A3C34]/10">
                 {cat}
               </span>
             ))}
@@ -100,56 +100,56 @@ function PropertyCard({
         )}
 
         {/* Seller details */}
-        <div className="mt-3.5 border-t border-slate-900/60 pt-3 text-xs space-y-1 text-slate-300">
+        <div className="mt-3.5 border-t border-black/5 pt-3 text-xs space-y-1.5 text-slate-600">
           <p className="flex justify-between">
-            <span className="text-slate-500">Seller:</span>
-            <span className="font-semibold">{seller?.ownerName || 'Unknown'}</span>
+            <span className="text-slate-450">Seller:</span>
+            <span className="font-bold text-slate-700">{seller?.ownerName || 'Unknown'}</span>
           </p>
           {seller?.phone && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Phone:</span>
-              <span>{seller.phone}</span>
+              <span className="text-slate-450">Phone:</span>
+              <span className="font-semibold text-slate-700">{seller.phone}</span>
             </p>
           )}
           <p className="flex justify-between">
-            <span className="text-slate-500">Stage Days:</span>
-            <span>{daysInStage}d active</span>
+            <span className="text-slate-450">Stage Days:</span>
+            <span className="font-semibold text-slate-700">{daysInStage}d active</span>
           </p>
           {property.lastContactDate && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Last Contact:</span>
-              <span>{property.lastContactDate}</span>
+              <span className="text-slate-450">Last Contact:</span>
+              <span className="font-semibold text-slate-700">{property.lastContactDate}</span>
             </p>
           )}
           {property.followUpDate && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Follow-up:</span>
-              <span className="text-rose-400 font-semibold">{property.followUpDate}</span>
+              <span className="text-slate-450">Follow-up:</span>
+              <span className="text-rose-600 font-bold">{property.followUpDate}</span>
             </p>
           )}
           {assignedName && (
-            <p className="flex justify-between items-center bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/15 mt-2">
-              <span>Assigned To:</span>
-              <span className="font-bold">{assignedName}</span>
+            <p className="flex justify-between items-center bg-emerald-500/5 text-emerald-700 px-2.5 py-1 rounded-xl border border-emerald-500/10 mt-2 text-[11px]">
+              <span className="font-medium">Assigned To:</span>
+              <span className="font-black">{assignedName}</span>
             </p>
           )}
         </div>
       </div>
 
       {/* Quick Actions Row */}
-      <div className="mt-4 border-t border-slate-900/60 pt-3">
-        <div className="grid grid-cols-2 gap-1.5 mb-2">
+      <div className="mt-4 border-t border-black/5 pt-3">
+        <div className="grid grid-cols-2 gap-1.5 mb-1.5">
           {seller?.phone ? (
             <a
               href={`tel:${seller.phone}`}
-              className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-center text-[10px] font-bold text-slate-300 hover:bg-slate-900 transition flex items-center justify-center gap-1"
+              className="rounded-2xl border border-black/10 bg-slate-550/5 px-3 py-2 text-center text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition flex items-center justify-center gap-1"
             >
               📞 Call Seller
             </a>
           ) : (
             <button
               disabled
-              className="rounded-xl border border-slate-850 bg-slate-950/40 px-3 py-1.5 text-[10px] text-slate-600 cursor-not-allowed flex items-center justify-center gap-1"
+              className="rounded-2xl border border-black/5 bg-slate-50/40 px-3 py-2 text-[10px] text-slate-400 cursor-not-allowed flex items-center justify-center gap-1"
             >
               📞 No Phone
             </button>
@@ -157,7 +157,7 @@ function PropertyCard({
 
           <button
             onClick={() => onOpenNotes({ type: 'property', id: property.id, name: property.address, notesList: property.notesList || [] })}
-            className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-900 transition flex items-center justify-center gap-1"
+            className="rounded-2xl border border-black/10 bg-slate-550/5 px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition flex items-center justify-center gap-1"
           >
             📝 Notes ({property.notesList?.length || 0})
           </button>
@@ -166,13 +166,13 @@ function PropertyCard({
         <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={() => onOpenStage(property)}
-            className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-900 transition flex items-center justify-center gap-1"
+            className="rounded-2xl border border-black/10 bg-slate-550/5 px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition flex items-center justify-center gap-1"
           >
             🔄 Stage
           </button>
           <button
             onClick={() => onOpenAssign(property)}
-            className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-[10px] font-bold text-slate-300 hover:bg-slate-900 transition flex items-center justify-center gap-1"
+            className="rounded-2xl border border-black/10 bg-slate-550/5 px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-slate-100 transition flex items-center justify-center gap-1"
           >
             👥 Assign Buyer
           </button>
@@ -182,13 +182,13 @@ function PropertyCard({
         <div className="mt-2 grid grid-cols-2 gap-1.5">
           <button
             onClick={() => onMoveStage(property.id, 'under_contract')}
-            className="rounded-xl border border-purple-500/20 bg-purple-500/10 px-3 py-1 text-[9px] font-bold text-purple-400 hover:bg-purple-500/25 transition"
+            className="rounded-2xl border border-purple-500/20 bg-purple-500/5 px-3 py-1.5 text-[9px] font-bold text-purple-700 hover:bg-purple-500/10 transition"
           >
             🤝 Contract Deal
           </button>
           <button
             onClick={() => onMoveStage(property.id, 'closed')}
-            className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[9px] font-bold text-emerald-400 hover:bg-emerald-500/25 transition"
+            className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-[9px] font-bold text-emerald-700 hover:bg-emerald-500/10 transition"
           >
             🎉 Close Deal
           </button>
@@ -208,47 +208,47 @@ interface ContactCardProps {
 
 function ContactCard({ contact, type, name, company, onOpenNotes }: ContactCardProps) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 flex flex-col justify-between hover:border-slate-700 transition">
+    <div className="rounded-3xl border border-black/5 bg-white p-5 flex flex-col justify-between hover:border-black/10 hover:shadow-md transition duration-300">
       <div>
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h4 className="font-bold text-slate-100 text-sm">{name}</h4>
-            <p className="text-xs text-slate-400">{company}</p>
+            <h4 className="font-extrabold text-[#1A3C34] text-sm">{name}</h4>
+            <p className="text-xs text-[#5A6672]">{company}</p>
           </div>
-          <span className={`rounded-xl px-2 py-0.5 text-[10px] font-bold uppercase ${
+          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
             type === 'seller'
-              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/25'
+              ? 'bg-purple-500/10 text-purple-700 border border-purple-500/20'
               : type === 'buyer'
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/25'
-              : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/25'
+              ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
+              : 'bg-indigo-500/10 text-indigo-700 border border-indigo-500/20'
           }`}>
             {type}
           </span>
         </div>
 
-        <div className="mt-3.5 space-y-1 text-xs text-slate-300">
+        <div className="mt-3.5 space-y-1.5 text-xs text-slate-650">
           {contact.phone && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Phone:</span>
-              <span>{contact.phone}</span>
+              <span className="text-slate-450">Phone:</span>
+              <span className="font-semibold text-slate-700">{contact.phone}</span>
             </p>
           )}
           {contact.email && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Email:</span>
-              <span>{contact.email}</span>
+              <span className="text-slate-450">Email:</span>
+              <span className="font-semibold text-slate-700">{contact.email}</span>
             </p>
           )}
           {contact.mailingAddress && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Address:</span>
-              <span className="truncate max-w-[150px]">{contact.mailingAddress}</span>
+              <span className="text-slate-450">Address:</span>
+              <span className="font-semibold text-slate-700 truncate max-w-[150px]">{contact.mailingAddress}</span>
             </p>
           )}
           {contact.lastContactDate && (
             <p className="flex justify-between">
-              <span className="text-slate-500">Last Contact:</span>
-              <span>{contact.lastContactDate}</span>
+              <span className="text-slate-450">Last Contact:</span>
+              <span className="font-semibold text-slate-700">{contact.lastContactDate}</span>
             </p>
           )}
           {contact.linkedInUrl && (
@@ -256,7 +256,7 @@ function ContactCard({ contact, type, name, company, onOpenNotes }: ContactCardP
               href={contact.linkedInUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 block text-[10px] text-sky-400 hover:underline"
+              className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-bold text-sky-600 hover:underline"
             >
               🔗 LinkedIn Profile
             </a>
@@ -265,11 +265,11 @@ function ContactCard({ contact, type, name, company, onOpenNotes }: ContactCardP
       </div>
 
       {/* Actions */}
-      <div className="mt-4 border-t border-slate-900/60 pt-3 flex gap-2">
+      <div className="mt-4 border-t border-black/5 pt-3 flex gap-2">
         {contact.phone && (
           <a
             href={`tel:${contact.phone}`}
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-950 py-1.5 text-center text-xs font-bold text-slate-300 hover:bg-slate-900 transition"
+            className="flex-1 rounded-2xl border border-black/10 bg-slate-550/5 py-2 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
           >
             📞 Call
           </a>
@@ -277,14 +277,14 @@ function ContactCard({ contact, type, name, company, onOpenNotes }: ContactCardP
         {contact.email && (
           <a
             href={`mailto:${contact.email}`}
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-950 py-1.5 text-center text-xs font-bold text-slate-300 hover:bg-slate-900 transition"
+            className="flex-1 rounded-2xl border border-black/10 bg-slate-550/5 py-2 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
           >
             ✉️ Email
           </a>
         )}
         <button
           onClick={() => onOpenNotes({ type, id: contact.id, name, notesList: contact.notesList || [] })}
-          className="flex-1 rounded-xl border border-slate-800 bg-slate-950 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-900 transition"
+          className="flex-1 rounded-2xl border border-black/10 bg-slate-550/5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
         >
           📝 Note ({contact.notesList?.length || 0})
         </button>
@@ -410,19 +410,38 @@ export default function PipelinePage() {
     );
   }, [allContactsForAssignment, assignSearch]);
 
+  const { exportRowsForTab, exportFilenameForTab } = useMemo(() => {
+    switch (activeTab) {
+      case 'new':
+        return { exportRowsForTab: newLeads, exportFilenameForTab: 'crm-new-leads' };
+      case 'contacted':
+        return { exportRowsForTab: contactedLeads, exportFilenameForTab: 'crm-contacted-leads' };
+      case 'followup':
+        return { exportRowsForTab: followUpLeads, exportFilenameForTab: 'crm-followup-leads' };
+      case 'sellers':
+        return { exportRowsForTab: data.sellers, exportFilenameForTab: 'crm-sellers' };
+      case 'buyers':
+        return { exportRowsForTab: data.buyers, exportFilenameForTab: 'crm-buyers' };
+      case 'investors':
+        return { exportRowsForTab: data.investors, exportFilenameForTab: 'crm-investors' };
+      default:
+        return { exportRowsForTab: [], exportFilenameForTab: 'crm-export' };
+    }
+  }, [activeTab, newLeads, contactedLeads, followUpLeads, data]);
+
   return (
     <AppLayout title="CRM Pipeline">
       {/* Header Controls */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-black text-slate-100">Leads & Relationship Tracker</h2>
-          <p className="text-xs text-slate-400">Manage pipeline stages, schedule follow-ups, and log customer communications.</p>
+          <h2 className="text-xl font-black text-[#1A3C34]">Leads & Relationship Tracker</h2>
+          <p className="text-xs text-slate-500">Manage pipeline stages, schedule follow-ups, and log customer communications.</p>
         </div>
         <div className="flex gap-2 items-center">
-          <ExportMenu rows={data.properties as any} filename="crm-export" />
+          <ExportMenu rows={exportRowsForTab as any} filename={exportFilenameForTab} />
           <button
             onClick={() => navigate('/lead-capture')}
-            className="rounded-xl border border-sky-600 bg-sky-500/10 px-4 py-2 text-xs font-bold text-sky-400 hover:bg-sky-500/20 transition"
+            className="rounded-xl border border-[#1A3C34]/15 bg-white px-4 py-2 text-xs font-bold text-[#1A3C34] hover:bg-black/5 transition"
           >
             + Add New Lead
           </button>
@@ -430,17 +449,17 @@ export default function PipelinePage() {
       </div>
 
       {/* 6 Tabs Menu */}
-      <div className="mb-6 flex flex-wrap gap-1.5 border-b border-slate-800 pb-2">
+      <div className="mb-6 flex flex-wrap gap-1.5 border-b border-black/5 pb-2">
         <button
           onClick={() => setActiveTab('new')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition duration-150 ${
             activeTab === 'new'
-              ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-[#1A3C34]/10 text-[#1A3C34] border border-[#1A3C34]/20'
+              : 'text-slate-500 hover:text-[#1A3C34]'
           }`}
         >
           📂 New Leads
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
             {newLeads.length}
           </span>
         </button>
@@ -449,12 +468,12 @@ export default function PipelinePage() {
           onClick={() => setActiveTab('contacted')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition duration-150 ${
             activeTab === 'contacted'
-              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-amber-550/10 text-amber-700 border border-amber-500/20'
+              : 'text-slate-500 hover:text-[#1A3C34]'
           }`}
         >
           📞 Contacted
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
             {contactedLeads.length}
           </span>
         </button>
@@ -463,12 +482,12 @@ export default function PipelinePage() {
           onClick={() => setActiveTab('followup')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition duration-150 ${
             activeTab === 'followup'
-              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-rose-500/10 text-rose-700 border border-rose-500/20'
+              : 'text-slate-500 hover:text-[#1A3C34]'
           }`}
         >
           🗓️ Follow Up
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
             {followUpLeads.length}
           </span>
         </button>
@@ -477,12 +496,12 @@ export default function PipelinePage() {
           onClick={() => setActiveTab('sellers')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition duration-150 ${
             activeTab === 'sellers'
-              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-purple-500/10 text-purple-700 border border-purple-500/20'
+              : 'text-slate-500 hover:text-[#1A3C34]'
           }`}
         >
           👤 Sellers
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
             {data.sellers.length}
           </span>
         </button>
@@ -491,12 +510,12 @@ export default function PipelinePage() {
           onClick={() => setActiveTab('buyers')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition duration-150 ${
             activeTab === 'buyers'
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-[#1A3C34]/10 text-[#1A3C34] border border-[#1A3C34]/20'
+              : 'text-slate-500 hover:text-[#1A3C34]'
           }`}
         >
           🤝 Buyers
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
             {data.buyers.length}
           </span>
         </button>
@@ -505,12 +524,12 @@ export default function PipelinePage() {
           onClick={() => setActiveTab('investors')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition duration-150 ${
             activeTab === 'investors'
-              ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-indigo-500/10 text-indigo-700 border border-indigo-500/20'
+              : 'text-slate-500 hover:text-[#1A3C34]'
           }`}
         >
           💎 Investors
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
             {data.investors.length}
           </span>
         </button>
@@ -523,7 +542,7 @@ export default function PipelinePage() {
         {/* NEW LEADS TAB */}
         {activeTab === 'new' && (
           newLeads.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-12 text-sm">No new leads available. Drag or add a new property.</div>
+            <div className="col-span-full text-center text-slate-400 py-12 text-sm">No new leads available. Drag or add a new property.</div>
           ) : (
             newLeads.map(p => (
               <PropertyCard
@@ -544,7 +563,7 @@ export default function PipelinePage() {
         {/* CONTACTED LEADS TAB */}
         {activeTab === 'contacted' && (
           contactedLeads.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-12 text-sm">No contacted leads available. Move stage on new leads to contact them.</div>
+            <div className="col-span-full text-center text-slate-400 py-12 text-sm">No contacted leads available. Move stage on new leads to contact them.</div>
           ) : (
             contactedLeads.map(p => (
               <PropertyCard
@@ -565,7 +584,7 @@ export default function PipelinePage() {
         {/* FOLLOW UP TAB */}
         {activeTab === 'followup' && (
           followUpLeads.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-12 text-sm">No scheduled follow-up leads. Set follow-up date on any property card.</div>
+            <div className="col-span-full text-center text-slate-400 py-12 text-sm">No scheduled follow-up leads. Set follow-up date on any property card.</div>
           ) : (
             followUpLeads.map(p => (
               <PropertyCard
@@ -586,7 +605,7 @@ export default function PipelinePage() {
         {/* SELLERS TAB */}
         {activeTab === 'sellers' && (
           data.sellers.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-12 text-sm">No seller records found.</div>
+            <div className="col-span-full text-center text-slate-400 py-12 text-sm">No seller records found.</div>
           ) : (
             data.sellers.map(s => (
               <ContactCard
@@ -604,7 +623,7 @@ export default function PipelinePage() {
         {/* BUYERS TAB */}
         {activeTab === 'buyers' && (
           data.buyers.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-12 text-sm">No buyer records found.</div>
+            <div className="col-span-full text-center text-slate-400 py-12 text-sm">No buyer records found.</div>
           ) : (
             data.buyers.map(b => (
               <ContactCard
@@ -622,7 +641,7 @@ export default function PipelinePage() {
         {/* INVESTORS TAB */}
         {activeTab === 'investors' && (
           data.investors.length === 0 ? (
-            <div className="col-span-full text-center text-slate-500 py-12 text-sm">No investor records found.</div>
+            <div className="col-span-full text-center text-slate-400 py-12 text-sm">No investor records found.</div>
           ) : (
             data.investors.map(inv => (
               <ContactCard
@@ -640,13 +659,13 @@ export default function PipelinePage() {
 
       {/* NOTES MODAL DIALOG */}
       {noteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-slate-100">Communication Notes</h3>
-              <button onClick={() => setNoteTarget(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-black/5 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-black/5 pb-3">
+              <h3 className="font-extrabold text-[#1A3C34]">Communication Notes</h3>
+              <button onClick={() => setNoteTarget(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Record for: <span className="font-bold text-slate-300">{noteTarget.name}</span></p>
+            <p className="mt-2 text-xs text-slate-500">Record for: <span className="font-bold text-slate-700">{noteTarget.name}</span></p>
 
             {/* Note Editor */}
             <div className="mt-4">
@@ -655,18 +674,18 @@ export default function PipelinePage() {
                 onChange={e => setNewNoteText(e.target.value)}
                 rows={3}
                 placeholder="Type your timestamped note here..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200 focus:border-sky-500 focus:outline-none"
+                className="w-full rounded-2xl border border-black/10 bg-slate-50 p-3 text-sm text-slate-800 focus:border-[#1A3C34] focus:outline-none"
               />
-              <div className="mt-2 flex justify-end gap-2">
+              <div className="mt-3 flex justify-end gap-2">
                 <button
                   onClick={() => setNoteTarget(null)}
-                  className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900"
+                  className="rounded-2xl border border-black/10 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveNote}
-                  className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-500"
+                  className="rounded-2xl bg-[#1A3C34] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1A3C34]/90"
                 >
                   Save Note
                 </button>
@@ -674,15 +693,15 @@ export default function PipelinePage() {
             </div>
 
             {/* Notes List */}
-            <div className="mt-6 border-t border-slate-800 pt-4 max-h-48 overflow-y-auto space-y-2">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Historical Notes</p>
+            <div className="mt-6 border-t border-black/5 pt-4 max-h-48 overflow-y-auto space-y-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Historical Notes</p>
               {noteTarget.notesList.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-4">No notes recorded yet.</p>
+                <p className="text-xs text-slate-400 text-center py-4">No notes recorded yet.</p>
               ) : (
                 noteTarget.notesList.map(n => (
-                  <div key={n.id} className="rounded-xl border border-slate-850 bg-slate-950/40 p-3 text-xs">
-                    <p className="text-slate-300">{n.text}</p>
-                    <p className="mt-1 text-[10px] text-slate-500">{new Date(n.createdAt).toLocaleString()}</p>
+                  <div key={n.id} className="rounded-2xl border border-black/5 bg-slate-50/50 p-3 text-xs">
+                    <p className="text-slate-700 font-medium">{n.text}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">{new Date(n.createdAt).toLocaleString()}</p>
                   </div>
                 ))
               )}
@@ -693,24 +712,24 @@ export default function PipelinePage() {
 
       {/* MOVE STAGE MODAL DIALOG */}
       {stageTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-slate-100">Update Lead Stage</h3>
-              <button onClick={() => setStageTarget(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-black/5 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-black/5 pb-3">
+              <h3 className="font-extrabold text-[#1A3C34]">Update Lead Stage</h3>
+              <button onClick={() => setStageTarget(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Address: <span className="font-bold text-slate-300">{stageTarget.address}</span></p>
+            <p className="mt-2 text-xs text-slate-500">Address: <span className="font-bold text-slate-700">{stageTarget.address}</span></p>
 
             <div className="mt-4 flex flex-col gap-2">
               <button
                 onClick={() => handleMoveStage(stageTarget.id, 'new')}
-                className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-left text-xs text-slate-300 hover:bg-slate-850 transition"
+                className="rounded-2xl border border-black/10 bg-slate-50 p-3 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
               >
                 📂 Move to New Leads
               </button>
               <button
                 onClick={() => handleMoveStage(stageTarget.id, 'contacted')}
-                className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-left text-xs text-slate-300 hover:bg-slate-850 transition"
+                className="rounded-2xl border border-black/10 bg-slate-50 p-3 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
               >
                 📞 Move to Contacted
               </button>
@@ -719,19 +738,19 @@ export default function PipelinePage() {
                   setStageTarget(null);
                   setFollowUpTarget(stageTarget);
                 }}
-                className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-left text-xs text-slate-300 hover:bg-slate-850 transition"
+                className="rounded-2xl border border-black/10 bg-slate-50 p-3 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
               >
                 🗓️ Schedule Follow Up callback
               </button>
               <button
                 onClick={() => handleMoveStage(stageTarget.id, 'under_contract')}
-                className="rounded-xl border border-purple-500/20 bg-purple-500/10 p-3 text-left text-xs text-purple-400 hover:bg-purple-500/20 transition"
+                className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-3 text-left text-xs font-semibold text-purple-700 hover:bg-purple-500/10 transition"
               >
                 🤝 Mark Under Contract
               </button>
               <button
                 onClick={() => handleMoveStage(stageTarget.id, 'closed')}
-                className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-left text-xs text-emerald-400 hover:bg-emerald-500/20 transition"
+                className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10 transition"
               >
                 🎉 Mark Closed Deal
               </button>
@@ -742,32 +761,32 @@ export default function PipelinePage() {
 
       {/* SCHEDULE FOLLOW UP MODAL DIALOG */}
       {followUpTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-slate-100">Schedule Callback</h3>
-              <button onClick={() => setFollowUpTarget(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-black/5 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-black/5 pb-3">
+              <h3 className="font-extrabold text-[#1A3C34]">Schedule Callback</h3>
+              <button onClick={() => setFollowUpTarget(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Address: <span className="font-bold text-slate-300">{followUpTarget.address}</span></p>
+            <p className="mt-2 text-xs text-slate-500">Address: <span className="font-bold text-slate-700">{followUpTarget.address}</span></p>
 
             <div className="mt-4">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pick Date</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pick Date</label>
               <input
                 type="date"
                 value={followUpDateStr}
                 onChange={e => setFollowUpDateStr(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-sm text-slate-200 focus:outline-none"
+                className="w-full rounded-2xl border border-black/10 bg-slate-550/5 p-2.5 text-sm text-slate-800 focus:outline-none"
               />
               <div className="mt-4 flex justify-end gap-2">
                 <button
                   onClick={() => setFollowUpTarget(null)}
-                  className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-xs text-slate-400"
+                  className="rounded-2xl border border-black/10 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveFollowUpDate}
-                  className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-500"
+                  className="rounded-2xl bg-[#1A3C34] px-4 py-2 text-xs font-bold text-white hover:bg-[#1A3C34]/90"
                 >
                   Save Date
                 </button>
@@ -779,13 +798,13 @@ export default function PipelinePage() {
 
       {/* ASSIGN BUYER MODAL DIALOG */}
       {assignTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-slate-100">Assign Buyer to Deal</h3>
-              <button onClick={() => setAssignTarget(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-black/5 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-black/5 pb-3">
+              <h3 className="font-extrabold text-[#1A3C34]">Assign Buyer to Deal</h3>
+              <button onClick={() => setAssignTarget(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Address: <span className="font-bold text-slate-300">{assignTarget.address}</span></p>
+            <p className="mt-2 text-xs text-slate-500">Address: <span className="font-bold text-slate-700">{assignTarget.address}</span></p>
 
             {/* Search Box */}
             <div className="mt-4">
@@ -794,33 +813,33 @@ export default function PipelinePage() {
                 value={assignSearch}
                 onChange={e => setAssignSearch(e.target.value)}
                 placeholder="Search by contact or company name..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-sm text-slate-200 focus:outline-none"
+                className="w-full rounded-2xl border border-black/10 bg-slate-550/5 p-2.5 text-sm text-slate-800 focus:outline-none"
               />
             </div>
 
             {/* Contacts list */}
-            <div className="mt-4 border border-slate-800 bg-slate-950/60 rounded-xl max-h-60 overflow-y-auto">
+            <div className="mt-4 border border-black/5 bg-slate-50 rounded-2xl max-h-60 overflow-y-auto">
               <button
                 onClick={() => handleAssignBuyer(assignTarget.id, null)}
-                className="w-full p-3 text-left text-xs border-b border-slate-850 hover:bg-slate-900 transition text-rose-400 font-semibold"
+                className="w-full p-3 text-left text-xs border-b border-black/5 hover:bg-slate-100 transition text-rose-600 font-semibold"
               >
                 🚫 Remove Current Assignment
               </button>
               {filteredContactsForAssignment.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-6">No matching contacts found.</p>
+                <p className="text-xs text-slate-400 text-center py-6">No matching contacts found.</p>
               ) : (
                 filteredContactsForAssignment.map(c => (
                   <button
                     key={c.id}
                     onClick={() => handleAssignBuyer(assignTarget.id, c.id)}
-                    className="w-full p-3 text-left text-xs border-b border-slate-850 hover:bg-slate-900 transition flex justify-between items-center"
+                    className="w-full p-3 text-left text-xs border-b border-black/5 hover:bg-slate-100 transition flex justify-between items-center"
                   >
                     <div>
-                      <p className="font-bold text-slate-200">{c.name}</p>
-                      <p className="text-[10px] text-slate-500">{c.company || 'Individual'}</p>
+                      <p className="font-bold text-slate-800">{c.name}</p>
+                      <p className="text-[10px] text-slate-450">{c.company || 'Individual'}</p>
                     </div>
-                    <span className={`rounded-xl px-2 py-0.5 text-[9px] font-bold ${
-                      c.type === 'Buyer' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400'
+                    <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold ${
+                      c.type === 'Buyer' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-indigo-500/10 text-indigo-700'
                     }`}>
                       {c.type}
                     </span>

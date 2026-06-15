@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../hooks/useStore'
 import { api } from '../api/client'
@@ -38,11 +38,16 @@ export default function PropertiesPage() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
 
   // State for search and filters
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('q') || '')
   const [selectedPropType, setSelectedPropType] = useState<string>('All')
   const [selectedLeadCat, setSelectedLeadCat] = useState<string>('All')
   const [selectedSource, setSelectedSource] = useState<string>('All')
   const [selectedPriceRangeIdx, setSelectedPriceRangeIdx] = useState<number>(0) // All Prices
+
+  const queryParam = new URLSearchParams(window.location.search).get('q') || ''
+  useEffect(() => {
+    setSearch(queryParam)
+  }, [queryParam])
 
   // Filtered properties
   const filteredProperties = useMemo(() => {

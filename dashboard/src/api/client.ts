@@ -92,4 +92,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ matches }),
     }),
+
+  clearDb: () =>
+    request<{ ok: boolean }>('/admin/clear-db', { method: 'POST' }),
 };

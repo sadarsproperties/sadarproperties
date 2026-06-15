@@ -24,6 +24,8 @@ import {
 } from './db.js';
 import { sendEmail, buildDealEmailHtml, buildDealEmailText, sendWelcomeEmail, sendActivityNotification } from './resend.js';
 import { CONFIG } from '../config.js';
+import { initQueue, addJob, registerJobProcessor } from './queue.js';
+import { generateServerExport, exportJobs } from './exportService.js';
 
 // Scrapers
 import { scrapeCraigslist } from '../scrapers/craigslist.js';
@@ -236,7 +238,7 @@ async function playwrightScrape(url) {
       return JSON.stringify(scraperResults, null, 2);
     }
 
-    // Default Fallback: Open page and parse main text/body
+    // Default Fallback: Open page and parse using Cheerio for server-side extraction
     const page = await context.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
     
@@ -244,14 +246,21 @@ async function playwrightScrape(url) {
     await page.evaluate(() => window.scrollBy(0, 500));
     await page.waitForTimeout(1000);
 
-    // Get main content + meta description
-    const text = await page.evaluate(() => {
-      const main = document.querySelector('main, article, .profile, body')?.innerText || document.body.innerText;
-      const desc = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-      return (desc + ' ' + main).replace(/\s+/g, ' ').slice(0, 8000);
-    });
-    
+    const html = await page.content();
     await browser.close();
+
+    let text = '';
+    try {
+      const cheerio = await import('cheerio');
+      const $ = cheerio.load(html);
+      $('script, style, iframe, noscript').remove();
+      const desc = $('meta[name="description"]').attr('content') || '';
+      const bodyText = $('main, article, .profile, body').first().text() || $('body').text();
+      text = (desc + ' ' + bodyText).replace(/\s+/g, ' ').slice(0, 8000);
+    } catch (cheerioErr) {
+      console.warn('[Server Scraper] Cheerio extraction failed, parsing using simple tags regex:', cheerioErr.message);
+      text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000);
+    }
     return text;
   } catch (e) {
     console.warn('[Server Scraper] Playwright scrape failed, falling back to basic fetch:', e.message);
@@ -1174,6 +1183,19 @@ app.post('/api/properties/:id/notify', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/clear-db', requireAuth, async (req, res) => {
+  try {
+    await query('DELETE FROM properties');
+    await query('DELETE FROM sellers');
+    await query('DELETE FROM buyers');
+    await query('DELETE FROM investors');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Admin] Clear DB error:', err);
+    res.status(500).json({ error: 'Failed to clear database: ' + err.message });
+  }
+});
+
 app.post('/api/ai/extract-buybox', requireAuth, async (req, res) => {
   try {
     const { text, url } = req.body || {};
@@ -1263,9 +1285,249 @@ Extracted Lead Information:
   }
 });
 
+app.get('/api/export', requireAuth, async (req, res) => {
+  const { type, format } = req.query || {};
+  if (!type || !format) {
+    return res.status(400).json({ error: 'Missing type or format parameter' });
+  }
+
+  if (format !== 'csv' && format !== 'xlsx') {
+    return res.status(400).json({ error: 'Unsupported format (only csv and xlsx are supported)' });
+  }
+
+  try {
+    const buffer = await generateServerExport({ exportType: type, format });
+    const filename = `${type}-${new Date().toISOString().slice(0, 10)}.${format}`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (err) {
+    console.error('[Export Route Error]', err);
+    res.status(500).json({ error: 'Export failed: ' + err.message });
+  }
+});
+
+// ==================== RESTFUL API GROUP ADDITIONS ====================
+
+// GET /api/properties/:id/matches — Get buyer matches for a property
+app.get('/api/properties/:id/matches', requireAuth, async (req, res) => {
+  try {
+    const prop = await properties.get(req.params.id);
+    if (!prop) return res.status(404).json({ error: 'Property not found' });
+    const matches = prop.topMatches || [];
+    res.json(matches);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/matching/run — Trigger full matching pass
+app.post('/api/matching/run', requireAuth, async (req, res) => {
+  try {
+    await addJob('run_matching', {});
+    res.json({ success: true, message: 'Full matching pass queued successfully in background' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/crm/:tab — CRM tab data
+app.get('/api/crm/:tab', requireAuth, async (req, res) => {
+  const { tab } = req.params;
+  try {
+    if (tab === 'new' || tab === 'new-leads') {
+      const list = await properties.list();
+      res.json(list.filter(p => p.status === 'new'));
+    } else if (tab === 'contacted') {
+      const list = await properties.list();
+      res.json(list.filter(p => p.status === 'contacted'));
+    } else if (tab === 'followup' || tab === 'follow-up') {
+      const list = await properties.list();
+      res.json(list.filter(p => p.followUpDate));
+    } else if (tab === 'sellers') {
+      const list = await sellers.list();
+      res.json(list);
+    } else if (tab === 'buyers') {
+      const list = await buyers.list();
+      res.json(list);
+    } else if (tab === 'investors') {
+      const list = await investors.list();
+      res.json(list);
+    } else {
+      res.status(400).json({ error: `Unknown CRM tab: ${tab}` });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/export — Trigger export job, returns download URL
+app.post('/api/export', requireAuth, async (req, res) => {
+  const { type, format } = req.body || {};
+  if (!type || !format) {
+    return res.status(400).json({ error: 'Missing type or format parameter' });
+  }
+
+  if (format !== 'csv' && format !== 'xlsx') {
+    return res.status(400).json({ error: 'Unsupported format (only csv and xlsx are supported)' });
+  }
+
+  try {
+    const jobId = randomUUID();
+    exportJobs.set(jobId, { status: 'waiting', progress: 0 });
+    
+    await addJob('generate_export', { jobId, exportType: type, format });
+    
+    const downloadUrl = `${req.protocol}://${req.get('host')}/api/export/download/${jobId}`;
+    res.json({
+      success: true,
+      jobId,
+      downloadUrl
+    });
+  } catch (err) {
+    console.error('[Export Trigger Error]', err);
+    res.status(500).json({ error: 'Export trigger failed: ' + err.message });
+  }
+});
+
+// GET /api/export/download/:id — Serves the generated file download
+app.get('/api/export/download/:id', async (req, res) => {
+  const { id } = req.params;
+  const job = exportJobs.get(id);
+  if (!job) {
+    return res.status(404).json({ error: 'Export job not found or expired' });
+  }
+
+  if (job.status === 'processing' || job.status === 'waiting') {
+    return res.status(202).json({ status: 'processing', progress: job.progress });
+  }
+
+  if (job.status === 'failed') {
+    return res.status(500).json({ error: 'Export failed: ' + job.error });
+  }
+
+  res.download(job.filePath, job.fileName);
+});
+
+// GET /api/search?q= — Universal search across all entities
+app.get('/api/search', requireAuth, async (req, res) => {
+  const queryText = String(req.query.q || '').trim().toLowerCase();
+  if (!queryText) {
+    return res.json({ properties: [], sellers: [], buyers: [], investors: [] });
+  }
+
+  try {
+    const [allProps, allSellers, allBuyers, allInvestors] = await Promise.all([
+      properties.list(),
+      sellers.list(),
+      buyers.list(),
+      investors.list()
+    ]);
+
+    const matchedProps = allProps.filter(p =>
+      p.address?.toLowerCase().includes(queryText) ||
+      p.city?.toLowerCase().includes(queryText) ||
+      p.state?.toLowerCase().includes(queryText) ||
+      p.zip?.toLowerCase().includes(queryText) ||
+      p.zipCode?.toLowerCase().includes(queryText)
+    );
+
+    const matchedSellers = allSellers.filter(s =>
+      s.ownerName?.toLowerCase().includes(queryText) ||
+      s.email?.toLowerCase().includes(queryText) ||
+      s.phone?.toLowerCase().includes(queryText) ||
+      (Array.isArray(s.phoneNumbers) && s.phoneNumbers.some(n => String(n).includes(queryText))) ||
+      (Array.isArray(s.emailAddresses) && s.emailAddresses.some(e => e.toLowerCase().includes(queryText)))
+    );
+
+    const matchedBuyers = allBuyers.filter(b =>
+      b.fullName?.toLowerCase().includes(queryText) ||
+      b.companyName?.toLowerCase().includes(queryText) ||
+      b.email?.toLowerCase().includes(queryText) ||
+      b.phone?.toLowerCase().includes(queryText)
+    );
+
+    const matchedInvestors = allInvestors.filter(i =>
+      i.investorName?.toLowerCase().includes(queryText) ||
+      i.companyName?.toLowerCase().includes(queryText) ||
+      i.email?.toLowerCase().includes(queryText) ||
+      i.phone?.toLowerCase().includes(queryText)
+    );
+
+    res.json({
+      properties: matchedProps,
+      sellers: matchedSellers,
+      buyers: matchedBuyers,
+      investors: matchedInvestors
+    });
+  } catch (err) {
+    console.error('Universal search error:', err);
+    res.status(500).json({ error: 'Search failed: ' + err.message });
+  }
+});
+
 // Initialize Postgres schema then start server
 initDb()
-  .then(() => {
+  .then(async () => {
+    // Register background job processors matching Module 10 requirements
+    registerJobProcessor('scrape_source', async (data) => {
+      const { runScrapeTask } = await import('./sourceAdapters.js');
+      await runScrapeTask(data);
+    });
+
+    registerJobProcessor('run_matching', async (data) => {
+      const { reRunMatchingForAllProperties } = await import('./db.js');
+      await reRunMatchingForAllProperties();
+    });
+
+    registerJobProcessor('ai_extract_buybox', async (data) => {
+      const { text, url, entityId, entityType } = data || {};
+      const result = await extractBuyBox(text || url, !!url);
+      const { buyers, investors } = await import('./db.js');
+      if (entityType === 'buyer' && entityId) {
+        await buyers.update(entityId, { buyBox: result });
+      } else if (entityType === 'investor' && entityId) {
+        await investors.update(entityId, { buyBox: result });
+      }
+    });
+
+    registerJobProcessor('generate_export', async (data) => {
+      const { generateServerExport } = await import('./exportService.js');
+      await generateServerExport(data);
+    });
+
+    registerJobProcessor('cleanup_exports', async () => {
+      console.log('[Cleanup Job] Deleting export files older than 24 hours...');
+      const fs = await import('fs');
+      const path = await import('path');
+      const outputDir = path.join(process.cwd(), 'output');
+      if (!fs.existsSync(outputDir)) return;
+
+      const files = fs.readdirSync(outputDir);
+      const now = Date.now();
+      const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+      let count = 0;
+      for (const file of files) {
+        const filePath = path.join(outputDir, file);
+        try {
+          const stats = fs.statSync(filePath);
+          if (now - stats.mtimeMs > twentyFourHoursMs) {
+            fs.unlinkSync(filePath);
+            count++;
+          }
+        } catch (e) {
+          console.error('[Cleanup Job] Error processing file:', file, e.message);
+        }
+      }
+      console.log(`[Cleanup Job] Done. Deleted ${count} files.`);
+    });
+
+    registerJobProcessor('backup_db', async () => {
+      const { runDatabaseBackup } = await import('./backupService.js');
+      await runDatabaseBackup();
+    });
+
+    await initQueue().catch(err => console.error('Failed to initialize Task Queue:', err));
     const server = app.listen(PORT);
 
     server.on('listening', () => {

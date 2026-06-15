@@ -12,7 +12,7 @@ export default function SellersListPage() {
   const [loading, setLoading] = useState(true)
 
   // Filters state
-  const [ownerName, setOwnerName] = useState('')
+  const [ownerName, setOwnerName] = useState(() => new URLSearchParams(window.location.search).get('q') || '')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [zipOrState, setZipOrState] = useState('')
@@ -22,6 +22,11 @@ export default function SellersListPage() {
   const [yearsMin, setYearsMin] = useState('')
   const [yearsMax, setYearsMax] = useState('')
   const [skipTracedFilter, setSkipTracedFilter] = useState<'all' | 'traced' | 'untraced'>('all')
+
+  const queryParam = new URLSearchParams(window.location.search).get('q') || ''
+  useEffect(() => {
+    setOwnerName(queryParam)
+  }, [queryParam])
 
   // Add Seller Modal state
   const [showAddModal, setShowAddModal] = useState(false)

@@ -49,19 +49,60 @@ export async function query(text, params = []) {
 }
 
 export async function initDb() {
+  // Check if legacy database (with text primary keys) is currently active.
+  // If so, drop all tables cascading so we can recreate them with clean UUID schemas.
+  const tableCheck = await query(`
+    SELECT data_type FROM information_schema.columns 
+    WHERE table_name = 'properties' AND column_name = 'id'
+  `);
+  if (tableCheck.length > 0 && tableCheck[0].data_type === 'text') {
+    console.log('🔄 Legacy text-based database detected. Re-building schemas with strict UUID types...');
+    await query(`
+      DROP TABLE IF EXISTS buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, users, data_sources, export_logs CASCADE;
+    `);
+  }
+
+  // Also check if buyer_matches exists but is missing matched_criteria column (from previous step schema)
+  const matchCheck = await query(`
+    SELECT column_name FROM information_schema.columns 
+    WHERE table_name = 'buyer_matches' AND column_name = 'matched_criteria'
+  `);
+  if (matchCheck.length === 0) {
+    const tableExists = await query(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_name = 'buyer_matches'
+    `);
+    if (tableExists.length > 0) {
+      console.log('🔄 Re-building buyer_matches table to add matched_criteria and score definitions...');
+      await query(`DROP TABLE buyer_matches CASCADE;`);
+    }
+  }
+
   await query(`
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
     CREATE TABLE IF NOT EXISTS sellers (
-      id TEXT PRIMARY KEY,
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       owner_name TEXT NOT NULL,
       phone TEXT DEFAULT '',
       email TEXT DEFAULT '',
       mailing_address TEXT DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      phone_numbers JSONB DEFAULT '[]',
+      email_addresses JSONB DEFAULT '[]',
+      ownership_years INTEGER,
+      equity_estimate NUMERIC(12,2),
+      ownership_type TEXT DEFAULT 'Individual',
+      entity_name TEXT DEFAULT '',
+      skip_traced BOOLEAN DEFAULT FALSE,
+      last_contact_date TIMESTAMPTZ,
+      contact_notes TEXT DEFAULT '',
+      notes_list JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS buyers (
-      id TEXT PRIMARY KEY,
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       full_name TEXT NOT NULL,
       company_name TEXT DEFAULT '',
       phone TEXT DEFAULT '',
@@ -71,26 +112,27 @@ export async function initDb() {
       preferred_states JSONB DEFAULT '[]',
       preferred_cities JSONB DEFAULT '[]',
       desired_property_types JSONB DEFAULT '[]',
-      max_budget DOUBLE PRECISION,
+      max_budget NUMERIC(12,2),
       min_units INTEGER DEFAULT 0,
       max_units INTEGER DEFAULT 0,
-      budget_min DOUBLE PRECISION DEFAULT 0,
-      budget_max DOUBLE PRECISION DEFAULT 0,
+      budget_min NUMERIC(12,2) DEFAULT 0,
+      budget_max NUMERIC(12,2) DEFAULT 0,
       investment_strategy TEXT DEFAULT '',
       notes TEXT DEFAULT '',
-      last_contact TEXT,
+      last_contact TIMESTAMPTZ,
       deals_closed INTEGER DEFAULT 0,
       zillow_url TEXT DEFAULT '',
       redfin_url TEXT DEFAULT '',
       realtor_url TEXT DEFAULT '',
       propstream_url TEXT DEFAULT '',
       batchleads_url TEXT DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      notes_list JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS investors (
-      id TEXT PRIMARY KEY,
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       investor_name TEXT NOT NULL,
       company_name TEXT DEFAULT '',
       phone TEXT DEFAULT '',
@@ -112,142 +154,127 @@ export async function initDb() {
       buy_box_raw TEXT DEFAULT '',
       unit_range_min INTEGER DEFAULT 0,
       unit_range_max INTEGER DEFAULT 0,
-      budget_min DOUBLE PRECISION DEFAULT 0,
-      budget_max DOUBLE PRECISION DEFAULT 0,
+      budget_min NUMERIC(12,2) DEFAULT 0,
+      budget_max NUMERIC(12,2) DEFAULT 0,
       investment_strategy TEXT DEFAULT '',
       ai_extracted BOOLEAN DEFAULT FALSE,
       preferred_states JSONB DEFAULT '[]',
       preferred_cities JSONB DEFAULT '[]',
       desired_property_types JSONB DEFAULT '[]',
-      max_budget DOUBLE PRECISION,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      max_budget NUMERIC(12,2),
+      notes_list JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS properties (
-      id TEXT PRIMARY KEY,
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       address TEXT NOT NULL,
-      city TEXT DEFAULT '',
-      state TEXT DEFAULT '',
-      zip TEXT DEFAULT '',
-      zip_code TEXT DEFAULT '',
-      property_type TEXT NOT NULL,
-      lead_categories JSONB DEFAULT '[]',
-      price DOUBLE PRECISION NOT NULL DEFAULT 0,
-      asking_price DOUBLE PRECISION NOT NULL DEFAULT 0,
-      arv DOUBLE PRECISION,
-      repair_costs DOUBLE PRECISION,
-      assignment_fee DOUBLE PRECISION NOT NULL DEFAULT 10000,
-      seller_id TEXT REFERENCES sellers(id) ON DELETE SET NULL,
-      notes TEXT DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      status TEXT DEFAULT 'new',
-      top_matches JSONB DEFAULT '[]',
-      deal_score DOUBLE PRECISION,
+      city TEXT NOT NULL,
+      state CHAR(2) NOT NULL,
+      zip_code VARCHAR(10) NOT NULL,
+      asking_price NUMERIC(12,2),
+      arv NUMERIC(12,2),
       bedrooms INTEGER,
-      bathrooms DOUBLE PRECISION,
+      bathrooms NUMERIC(4,1),
       sqft INTEGER,
-      lot_size DOUBLE PRECISION,
+      lot_size NUMERIC(10,2),
       year_built INTEGER,
-      source TEXT DEFAULT 'Manual',
-      source_url TEXT DEFAULT '',
+      property_type TEXT NOT NULL,
+      lead_categories TEXT[],
+      source TEXT NOT NULL,
+      source_url TEXT,
+      status TEXT DEFAULT 'active',
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      deal_score DOUBLE PRECISION,
+      repair_costs NUMERIC(12,2),
+      assignment_fee NUMERIC(12,2) DEFAULT 10000.00,
+      seller_id UUID REFERENCES sellers(id) ON DELETE SET NULL,
+      top_matches JSONB DEFAULT '[]',
+      notes_list JSONB DEFAULT '[]',
       zillow_url TEXT DEFAULT '',
       redfin_url TEXT DEFAULT '',
       realtor_url TEXT DEFAULT '',
       propstream_url TEXT DEFAULT '',
       batchleads_url TEXT DEFAULT '',
-      units INTEGER DEFAULT 1
+      units INTEGER DEFAULT 1,
+      follow_up_date TIMESTAMPTZ,
+      last_contact_date TIMESTAMPTZ,
+      assigned_buyer_id UUID
     );
 
-    -- Add columns for existing databases (idempotent)
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'new';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS top_matches JSONB DEFAULT '[]';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS deal_score DOUBLE PRECISION;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS zip_code TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS asking_price DOUBLE PRECISION DEFAULT 0;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS bedrooms INTEGER;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS bathrooms DOUBLE PRECISION;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS sqft INTEGER;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS lot_size DOUBLE PRECISION;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_built INTEGER;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'Manual';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS source_url TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS zillow_url TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS redfin_url TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS realtor_url TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS propstream_url TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS batchleads_url TEXT DEFAULT '';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS units INTEGER DEFAULT 1;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS last_contact_date TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS follow_up_date TEXT;
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
-    ALTER TABLE properties ADD COLUMN IF NOT EXISTS assigned_buyer_id TEXT;
+    -- 1:1 circular link configuration back from seller to property (idempotent)
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS property_id UUID REFERENCES properties(id) ON DELETE SET NULL;
 
-    -- Add columns for sellers table (idempotent, placed after properties table exists)
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS property_id TEXT REFERENCES properties(id) ON DELETE SET NULL;
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS phone_numbers JSONB DEFAULT '[]';
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS email_addresses JSONB DEFAULT '[]';
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS ownership_years INTEGER;
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS equity_estimate DOUBLE PRECISION;
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS ownership_type TEXT DEFAULT 'Individual';
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS entity_name TEXT DEFAULT '';
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS skip_traced BOOLEAN DEFAULT FALSE;
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS last_contact_date TEXT;
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS contact_notes TEXT DEFAULT '';
-    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
+    CREATE TABLE IF NOT EXISTS buyer_matches (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+      buyer_id UUID,
+      buyer_type TEXT, -- 'buyer' or 'investor'
+      match_score NUMERIC(5,2),
+      matched_criteria JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
 
-    -- Add columns for buyers table (idempotent)
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS website TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS min_units INTEGER DEFAULT 0;
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS max_units INTEGER DEFAULT 0;
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS budget_min DOUBLE PRECISION DEFAULT 0;
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS budget_max DOUBLE PRECISION DEFAULT 0;
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS investment_strategy TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS last_contact TEXT;
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS deals_closed INTEGER DEFAULT 0;
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS zillow_url TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS redfin_url TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS realtor_url TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS propstream_url TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS batchleads_url TEXT DEFAULT '';
-    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
+    CREATE TABLE IF NOT EXISTS crm_notes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      entity_type TEXT NOT NULL,
+      entity_id UUID NOT NULL,
+      note_text TEXT NOT NULL,
+      author_name TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
 
-    -- Add columns for investors table (idempotent)
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS biggerpockets_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS facebook_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS twitter_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS instagram_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS zillow_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS redfin_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS realtor_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS propstream_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS batchleads_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS connected_investors_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS loopnet_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS crexi_url TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS source_platform TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS buy_box_raw TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS unit_range_min INTEGER DEFAULT 0;
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS unit_range_max INTEGER DEFAULT 0;
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS budget_min DOUBLE PRECISION DEFAULT 0;
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS budget_max DOUBLE PRECISION DEFAULT 0;
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS investment_strategy TEXT DEFAULT '';
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS ai_extracted BOOLEAN DEFAULT FALSE;
-    ALTER TABLE investors ADD COLUMN IF NOT EXISTS notes_list JSONB DEFAULT '[]';
+    CREATE TABLE IF NOT EXISTS crm_activities (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+      activity_type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS data_sources (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      source_name TEXT UNIQUE NOT NULL,
+      adapter_type TEXT NOT NULL,
+      credentials JSONB DEFAULT '{}',
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
 
     CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT,
       name TEXT NOT NULL,
       avatar_url TEXT DEFAULT '',
       google_id TEXT UNIQUE,
       facebook_id TEXT UNIQUE,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS export_logs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      export_type TEXT NOT NULL,
+      format TEXT NOT NULL,
+      record_count INTEGER DEFAULT 0,
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Indices for performance and scalability
+    CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
+    CREATE INDEX IF NOT EXISTS idx_properties_created_at ON properties(created_at);
+    CREATE INDEX IF NOT EXISTS idx_properties_address_zip ON properties(address, zip_code);
+    CREATE INDEX IF NOT EXISTS idx_buyer_matches_property_id ON buyer_matches(property_id);
+    CREATE INDEX IF NOT EXISTS idx_buyer_matches_buyer_id ON buyer_matches(buyer_id);
+    CREATE INDEX IF NOT EXISTS idx_crm_notes_entity ON crm_notes(entity_type, entity_id);
+    CREATE INDEX IF NOT EXISTS idx_crm_activities_property_id ON crm_activities(property_id);
   `);
 }
 
@@ -473,7 +500,10 @@ export async function updateUser(id, updates) {
 // ==================== GENERIC CRUD ====================
 
 // pg parameterized queries require JSONB values to be JSON strings
-function serializeParam(value) {
+function serializeParam(col, value) {
+  if (col === 'lead_categories' && Array.isArray(value)) {
+    return value; // node-pg handles string arrays natively
+  }
   if (Array.isArray(value) || (value !== null && typeof value === 'object' && !(value instanceof Date))) {
     return JSON.stringify(value);
   }
@@ -498,7 +528,7 @@ function createCrud(table, mapRow, mapBodyToDb) {
 
       const columns = Object.keys(values);
       const placeholders = columns.map((_, i) => `$${i + 1}`);
-      const params = columns.map((col) => serializeParam(values[col]));
+      const params = columns.map((col) => serializeParam(col, values[col]));
 
       await query(
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
@@ -519,7 +549,7 @@ function createCrud(table, mapRow, mapBodyToDb) {
 
       const params = Object.keys(values)
         .filter((key) => key !== 'id')
-        .map((key) => serializeParam(values[key]));
+        .map((key) => serializeParam(key, values[key]));
       params.push(id);
 
       await query(`UPDATE ${table} SET ${assignments.join(', ')} WHERE id = $${params.length}`, params);
@@ -575,7 +605,7 @@ const sellers = createCrud(
       ownership_type: ownershipType ?? 'Individual',
       entity_name: entityName ?? '',
       skip_traced: skipTraced === true || skipTraced === 'true',
-      last_contact_date: lastContactDate ?? null,
+      last_contact_date: lastContactDate && lastContactDate !== '' ? lastContactDate : null,
       contact_notes: contactNotes ?? '',
       notes_list: notesList ?? [],
     };
@@ -628,7 +658,7 @@ const buyersBase = createCrud(
     budget_max: budgetMax ?? null,
     investment_strategy: investmentStrategy ?? '',
     notes: notes ?? '',
-    last_contact: lastContact ?? null,
+    last_contact: lastContact && lastContact !== '' ? lastContact : null,
     deals_closed: dealsClosed ?? 0,
     zillow_url: zillowUrl ?? '',
     redfin_url: redfinUrl ?? '',
@@ -645,12 +675,12 @@ const buyers = {
   ...buyersBase,
   async insert(payload) {
     const res = await buyersBase.insert(payload);
-    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   },
   async update(id, payload) {
     const res = await buyersBase.update(id, payload);
-    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   }
 };
@@ -705,12 +735,12 @@ const investors = {
   ...investorsBase,
   async insert(payload) {
     const res = await investorsBase.insert(payload);
-    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   },
   async update(id, payload) {
     const res = await investorsBase.update(id, payload);
-    reRunMatchingForAllProperties().catch(err => console.error('Error in reRunMatchingForAllProperties:', err));
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   }
 };
@@ -730,11 +760,9 @@ const propertiesBase = createCrud(
     address: address ?? '',
     city: city ?? '',
     state: state ?? '',
-    zip: zip ?? zipCode ?? '',
     zip_code: zipCode ?? zip ?? '',
     property_type: propertyType ?? 'Single Family',
     lead_categories: leadCategories ?? [],
-    price: Number(price || askingPrice) || 0,
     asking_price: Number(askingPrice || price) || 0,
     arv: arv ?? null,
     repair_costs: repairCosts ?? null,
@@ -759,8 +787,8 @@ const propertiesBase = createCrud(
     propstream_url: propstreamUrl ?? '',
     batchleads_url: batchleadsUrl ?? '',
     units: units != null ? Number(units) : 1,
-    last_contact_date: lastContactDate ?? '',
-    follow_up_date: followUpDate ?? '',
+    last_contact_date: lastContactDate && lastContactDate !== '' ? lastContactDate : null,
+    follow_up_date: followUpDate && followUpDate !== '' ? followUpDate : null,
     notes_list: notesList ?? [],
     assigned_buyer_id: assignedBuyerId ?? null,
   })
@@ -785,12 +813,14 @@ const properties = {
     const matches = await findMatchesForProperty(tempProperty);
 
     // 3. Insert into database
-    return propertiesBase.insert({
+    const result = await propertiesBase.insert({
       ...payload,
       dealScore: score,
       topMatches: matches,
       status: payload.status || (matches.length > 0 ? 'matched' : 'new'),
     });
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+    return result;
   },
   async update(id, payload) {
     const existing = await this.get(id);
@@ -807,23 +837,22 @@ const properties = {
     // Re-find matches
     const matches = await findMatchesForProperty(merged);
 
-    return propertiesBase.update(id, {
+    const result = await propertiesBase.update(id, {
       ...payload,
       dealScore: score,
       topMatches: matches,
     });
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+    return result;
   }
 };
 
 // Export the resources so server/index.js can mount them easily
 export { sellers, buyers, investors, properties };
 
-// Clear all data from tables (respects FK order)
+// Clear all data from tables (respects FK order via TRUNCATE CASCADE)
 export async function clearAllData() {
-  await query('DELETE FROM properties');
-  await query('DELETE FROM sellers');
-  await query('DELETE FROM buyers');
-  await query('DELETE FROM investors');
+  await query('TRUNCATE TABLE buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, data_sources, export_logs CASCADE');
   return { cleared: true };
 }
 

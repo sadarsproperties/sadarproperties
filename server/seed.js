@@ -18,12 +18,9 @@ export async function seedDatabase({ force = false } = {}) {
   }
 
   if (force) {
-    // Use direct queries for cleanup (respect FK order)
+    // Truncate all tables cascading to respect FK orders
     const { query } = await import('./db.js');
-    await query('DELETE FROM properties');
-    await query('DELETE FROM sellers');
-    await query('DELETE FROM buyers');
-    await query('DELETE FROM investors');
+    await query('TRUNCATE TABLE buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, data_sources, export_logs CASCADE');
   }
 
   const now = new Date().toISOString();
