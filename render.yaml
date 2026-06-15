@@ -53,12 +53,9 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      # Inject the API host URL dynamically during the build step
+      # Public URL of the Express API (entered when importing the Blueprint)
       - key: VITE_API_URL
-        fromService:
-          name: https://sadarproperties-api.onrender.com
-          type: web
-          property: url
+        sync: false
 
   # 3. Redis Service (Managed Key-Value Store)
   - type: redis
