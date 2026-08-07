@@ -1542,6 +1542,17 @@ initDb()
     });
 
     await initQueue().catch(err => console.error('Failed to initialize Task Queue:', err));
+
+    if (isProd) {
+      const distPath = path.join(process.cwd(), 'dashboard/dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+          res.sendFile(path.join(distPath, 'index.html'));
+        }
+      });
+    }
+
     const server = app.listen(PORT);
 
     server.on('listening', () => {
