@@ -1546,10 +1546,8 @@ initDb()
     if (isProd) {
       const distPath = path.join(process.cwd(), 'dashboard/dist');
       app.use(express.static(distPath));
-      app.get('/:any*', (req, res) => {
-        if (!req.path.startsWith('/api')) {
-          res.sendFile(path.join(distPath, 'index.html'));
-        }
+      app.get(/.*/, (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
       });
     }
 
