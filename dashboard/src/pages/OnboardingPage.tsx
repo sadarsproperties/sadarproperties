@@ -22,11 +22,13 @@ export default function OnboardingPage() {
           </div>
 
           <h1 className="mx-auto max-w-4xl text-6xl font-extrabold leading-none tracking-[-2.5px] md:text-7xl">
-            Close More<br />
-            <span className="text-[#F5A623]">Deals.</span> Faster.
+            Sadar Properties
           </h1>
-          <p className="mx-auto mt-6 max-w-lg text-lg text-white/70">
-            The complete platform to source motivated sellers, analyze deals instantly, and connect with verified cash buyers.
+          <h2 className="mx-auto max-w-4xl text-4xl font-extrabold leading-none tracking-[-1.5px] mt-4 text-[#F5A623]">
+            Close More Deals. Faster.
+          </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-white/70">
+            The complete real estate wholesaling CRM to source motivated sellers, analyze deals instantly, and connect with cash buyers. We integrate with Google services to securely log you in, sync your contacts, and save deal sheets to your Drive.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -57,6 +59,25 @@ export default function OnboardingPage() {
               <div className="mt-2 text-sm leading-relaxed text-white/70">{f.desc}</div>
             </div>
           ))}
+        </div>
+
+        {/* Google OAuth & Purpose Section */}
+        <div className="mt-20 rounded-3xl border border-white/10 bg-white/5 p-8 max-w-3xl mx-auto text-left">
+          <h3 className="text-2xl font-bold text-[#F5A623] mb-4">About Sadar Properties & Google Integration</h3>
+          <p className="text-sm leading-relaxed text-white/80 mb-4">
+            Sadar Properties is a specialized CRM and wholesaling tool designed to help real estate professionals organize their pipelines, calculate deal metrics (Maximum Allowable Offer, estimated repairs), and manage buyer relationships.
+          </p>
+          <div className="text-sm leading-relaxed text-white/80">
+            <strong>Why we request Google OAuth permissions:</strong>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-white/70">
+              <li><strong>Secure Authentication:</strong> You can log in instantly and securely using your Google account.</li>
+              <li><strong>Contacts Synchronization:</strong> Import and sync your cash buyers directly into Sadar Properties from your Google Contacts.</li>
+              <li><strong>Export to Google Drive:</strong> Generate PDF/Excel deal sheets and save them directly to your Google Drive to share with prospective buyers.</li>
+            </ul>
+          </div>
+          <p className="text-xs text-white/50 mt-4">
+            Sadar Properties is fully committed to user privacy. We do not sell or share any data retrieved from Google APIs. For more information, please see our <Link to="/privacy" className="text-[#F5A623] hover:underline">Privacy Policy</Link> and <Link to="/terms" className="text-[#F5A623] hover:underline">Terms of Service</Link>.
+          </p>
         </div>
       </div>
 
