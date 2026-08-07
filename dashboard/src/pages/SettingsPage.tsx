@@ -10,6 +10,9 @@ export default function SettingsPage() {
   const [facebookActive, setFacebookActive] = useState(false);
   const [propStreamActive, setPropStreamActive] = useState(true);
   const [batchLeadsActive, setBatchLeadsActive] = useState(false);
+  const [fsboActive, setFsboActive] = useState(false);
+  const [auctionActive, setAuctionActive] = useState(false);
+  const [subjectToActive, setSubjectToActive] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState('24h');
 
   // Integrations Settings
@@ -31,6 +34,9 @@ export default function SettingsPage() {
     setFacebookActive(localStorage.getItem('pref_facebook_active') === 'true');
     setPropStreamActive(localStorage.getItem('pref_propstream_active') !== 'false');
     setBatchLeadsActive(localStorage.getItem('pref_batchleads_active') === 'true');
+    setFsboActive(localStorage.getItem('pref_fsbo_active') === 'true');
+    setAuctionActive(localStorage.getItem('pref_auction_active') === 'true');
+    setSubjectToActive(localStorage.getItem('pref_subjectto_active') === 'true');
     setRefreshInterval(localStorage.getItem('pref_refresh_interval') || '24h');
 
     setAiMode(localStorage.getItem('pref_ai_mode') || 'standard');
@@ -48,6 +54,9 @@ export default function SettingsPage() {
     localStorage.setItem('pref_facebook_active', String(facebookActive));
     localStorage.setItem('pref_propstream_active', String(propStreamActive));
     localStorage.setItem('pref_batchleads_active', String(batchLeadsActive));
+    localStorage.setItem('pref_fsbo_active', String(fsboActive));
+    localStorage.setItem('pref_auction_active', String(auctionActive));
+    localStorage.setItem('pref_subjectto_active', String(subjectToActive));
     localStorage.setItem('pref_refresh_interval', refreshInterval);
 
     localStorage.setItem('pref_ai_mode', aiMode);
@@ -178,6 +187,45 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={batchLeadsActive}
                       onChange={e => setBatchLeadsActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">FSBO Feed</p>
+                      <p className="text-[10px] text-slate-450">Scan For-Sale-By-Owner listings for direct-seller deals.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={fsboActive}
+                      onChange={e => setFsboActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">Auction Feed</p>
+                      <p className="text-[10px] text-slate-450">Scan auction marketplaces for bank-owned and distressed lots.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={auctionActive}
+                      onChange={e => setAuctionActive(e.target.checked)}
+                      className="h-4 w-4 accent-[#1A3C34] rounded"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1A3C34]">Subject-To Feed</p>
+                      <p className="text-[10px] text-slate-450">Track subject-to / creative-finance seller leads.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={subjectToActive}
+                      onChange={e => setSubjectToActive(e.target.checked)}
                       className="h-4 w-4 accent-[#1A3C34] rounded"
                     />
                   </div>

@@ -408,6 +408,105 @@ export class TaxDelinquentListsAdapter extends BaseSourceAdapter {
   }
 }
 
+// 12. FSBO (For Sale By Owner) Adapter
+export class FSBOAdapter extends BaseSourceAdapter {
+  constructor() {
+    super('FSBO', 'For Sale By Owner', 'Owner-listed properties', 'Web scrape');
+  }
+
+  normalize(raw) {
+    const priceVal = Number(raw.price || raw.askingPrice) || 0;
+    return {
+      id: raw.id || randomUUID(),
+      address: raw.address || 'Unknown Address',
+      city: raw.city || '',
+      county: raw.county || '',
+      state: raw.state || '',
+      zipCode: raw.zipCode || raw.zip || '',
+      askingPrice: priceVal,
+      price: priceVal,
+      arv: raw.arv || priceVal,
+      bedrooms: raw.bedrooms || null,
+      bathrooms: raw.bathrooms || null,
+      sqft: raw.sqft || null,
+      lotSize: raw.lotSize || null,
+      yearBuilt: raw.yearBuilt || null,
+      propertyType: raw.propertyType || 'Single Family',
+      leadCategories: raw.leadCategories || ['FSBO'],
+      source: this.name,
+      sourceUrl: raw.url || raw.sourceUrl || '',
+      status: 'new',
+      notes: raw.notes || 'For Sale By Owner listing.'
+    };
+  }
+}
+
+// 13. Auction Adapter
+export class AuctionAdapter extends BaseSourceAdapter {
+  constructor() {
+    super('Auction', 'Auction Marketplace', 'Auction & bank-owned properties', 'Web scrape');
+  }
+
+  normalize(raw) {
+    const priceVal = Number(raw.price || raw.askingPrice || raw.startingBid) || 0;
+    return {
+      id: raw.id || randomUUID(),
+      address: raw.address || 'Unknown Address',
+      city: raw.city || '',
+      county: raw.county || '',
+      state: raw.state || '',
+      zipCode: raw.zipCode || raw.zip || '',
+      askingPrice: priceVal,
+      price: priceVal,
+      arv: raw.arv || priceVal * 1.3,
+      bedrooms: raw.bedrooms || null,
+      bathrooms: raw.bathrooms || null,
+      sqft: raw.sqft || null,
+      lotSize: raw.lotSize || null,
+      yearBuilt: raw.yearBuilt || null,
+      propertyType: raw.propertyType || 'Single Family',
+      leadCategories: raw.leadCategories || ['Auction'],
+      source: this.name,
+      sourceUrl: raw.url || raw.sourceUrl || '',
+      status: 'new',
+      notes: raw.notes || 'Auction listing.'
+    };
+  }
+}
+
+// 14. Subject-To Adapter
+export class SubjectToAdapter extends BaseSourceAdapter {
+  constructor() {
+    super('Subject To', 'Creative Finance', 'Subject-to / seller-finance leads', 'Web scrape / manual');
+  }
+
+  normalize(raw) {
+    const priceVal = Number(raw.price || raw.askingPrice) || 0;
+    return {
+      id: raw.id || randomUUID(),
+      address: raw.address || 'Unknown Address',
+      city: raw.city || '',
+      county: raw.county || '',
+      state: raw.state || '',
+      zipCode: raw.zipCode || raw.zip || '',
+      askingPrice: priceVal,
+      price: priceVal,
+      arv: raw.arv || priceVal,
+      bedrooms: raw.bedrooms || null,
+      bathrooms: raw.bathrooms || null,
+      sqft: raw.sqft || null,
+      lotSize: raw.lotSize || null,
+      yearBuilt: raw.yearBuilt || null,
+      propertyType: raw.propertyType || 'Single Family',
+      leadCategories: raw.leadCategories || ['Subject To'],
+      source: this.name,
+      sourceUrl: raw.url || raw.sourceUrl || '',
+      status: 'new',
+      notes: raw.notes || 'Subject-To / creative finance lead.'
+    };
+  }
+}
+
 class AdapterRegistry {
   constructor() {
     this.adapters = new Map();
@@ -422,6 +521,9 @@ class AdapterRegistry {
     this.register(new CountyRecordsAdapter());
     this.register(new ForeclosureListsAdapter());
     this.register(new TaxDelinquentListsAdapter());
+    this.register(new FSBOAdapter());
+    this.register(new AuctionAdapter());
+    this.register(new SubjectToAdapter());
   }
 
   register(adapter) {
@@ -449,6 +551,9 @@ class AdapterRegistry {
     if (lower.includes('county') || lower.includes('.gov')) return this.get('county records');
     if (lower.includes('foreclosure')) return this.get('foreclosure lists');
     if (lower.includes('tax') || lower.includes('delinquent')) return this.get('tax delinquent lists');
+    if (lower.includes('auction.com') || lower.includes('hubzu') || lower.includes('xome') || lower.includes('auction')) return this.get('auction');
+    if (lower.includes('subject-to') || lower.includes('subjectto') || lower.includes('subject_to')) return this.get('subject to');
+    if (lower.includes('forsalebyowner') || lower.includes('fsbo')) return this.get('fsbo');
     return null;
   }
 }
@@ -478,6 +583,16 @@ export async function runScrapeTask(data) {
     scraper = new scraperClasses.PropStreamScraper();
   } else if (lowerSource === 'batchleads') {
     scraper = new scraperClasses.BatchLeadsScraper();
+  } else if (lowerSource === 'fsbo') {
+    scraper = new scraperClasses.FSBOScraper();
+  } else if (lowerSource === 'auction') {
+    scraper = new scraperClasses.AuctionScraper();
+  } else if (lowerSource === 'subject to' || lowerSource === 'subject-to' || lowerSource === 'subjectto') {
+    scraper = new scraperClasses.SubjectToScraper();
+  } else if (lowerSource === 'realtors' || lowerSource === 'realtor directory' || lowerSource === 'realtor') {
+    scraper = new scraperClasses.RealtorDirectoryScraper();
+  } else if (lowerSource === 'title companies' || lowerSource === 'title directory' || lowerSource === 'title' || lowerSource === 'title-companies') {
+    scraper = new scraperClasses.TitleDirectoryScraper();
   } else {
     throw new Error(`runScrapeTask: No scraper class registered for source "${source}"`);
   }

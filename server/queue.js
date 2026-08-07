@@ -190,7 +190,7 @@ async function setupWorkers() {
 }
 
 async function setupCronJobs() {
-  const dataSources = ['Zillow', 'Craigslist', 'Facebook', 'PropStream', 'BatchLeads'];
+  const dataSources = ['Zillow', 'Craigslist', 'Facebook', 'PropStream', 'BatchLeads', 'FSBO', 'Auction', 'Subject To'];
 
   if (useRedis && bullQueue) {
     try {

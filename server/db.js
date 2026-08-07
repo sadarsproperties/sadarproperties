@@ -58,7 +58,7 @@ export async function initDb() {
   if (tableCheck.length > 0 && tableCheck[0].data_type === 'text') {
     console.log('🔄 Legacy text-based database detected. Re-building schemas with strict UUID types...');
     await query(`
-      DROP TABLE IF EXISTS buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, users, data_sources, export_logs CASCADE;
+      DROP TABLE IF EXISTS buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, users, data_sources, export_logs, realtors, title_companies, cities, counties CASCADE;
     `);
   }
 
@@ -267,14 +267,83 @@ export async function initDb() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS counties (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      state CHAR(2) NOT NULL,
+      county_name TEXT NOT NULL,
+      fips_code TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (state, county_name)
+    );
+
+    CREATE TABLE IF NOT EXISTS cities (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      county_id UUID REFERENCES counties(id) ON DELETE CASCADE,
+      state CHAR(2) NOT NULL,
+      county_name TEXT DEFAULT '',
+      city_name TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (county_id, city_name)
+    );
+
+    CREATE TABLE IF NOT EXISTS realtors (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      brokerage TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      license_number TEXT DEFAULT '',
+      county_id UUID REFERENCES counties(id) ON DELETE SET NULL,
+      state CHAR(2) DEFAULT '',
+      county_name TEXT DEFAULT '',
+      city TEXT DEFAULT '',
+      phone_numbers JSONB DEFAULT '[]',
+      email_addresses JSONB DEFAULT '[]',
+      source TEXT DEFAULT 'Manual',
+      source_url TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      notes_list JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS title_companies (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      company_name TEXT NOT NULL,
+      contact_name TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      address TEXT DEFAULT '',
+      county_id UUID REFERENCES counties(id) ON DELETE SET NULL,
+      state CHAR(2) DEFAULT '',
+      county_name TEXT DEFAULT '',
+      source TEXT DEFAULT 'Manual',
+      source_url TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      notes_list JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Geographic county tag on properties for per-area rollups (idempotent)
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS county TEXT DEFAULT '';
+
     -- Indices for performance and scalability
     CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
     CREATE INDEX IF NOT EXISTS idx_properties_created_at ON properties(created_at);
     CREATE INDEX IF NOT EXISTS idx_properties_address_zip ON properties(address, zip_code);
+    CREATE INDEX IF NOT EXISTS idx_properties_state_county ON properties(state, county);
     CREATE INDEX IF NOT EXISTS idx_buyer_matches_property_id ON buyer_matches(property_id);
     CREATE INDEX IF NOT EXISTS idx_buyer_matches_buyer_id ON buyer_matches(buyer_id);
     CREATE INDEX IF NOT EXISTS idx_crm_notes_entity ON crm_notes(entity_type, entity_id);
     CREATE INDEX IF NOT EXISTS idx_crm_activities_property_id ON crm_activities(property_id);
+    CREATE INDEX IF NOT EXISTS idx_counties_state ON counties(state);
+    CREATE INDEX IF NOT EXISTS idx_cities_county_id ON cities(county_id);
+    CREATE INDEX IF NOT EXISTS idx_realtors_county_id ON realtors(county_id);
+    CREATE INDEX IF NOT EXISTS idx_title_companies_county_id ON title_companies(county_id);
   `);
 }
 
@@ -387,6 +456,7 @@ export function rowToProperty(row) {
     address: row.address,
     city: row.city,
     state: row.state,
+    county: row.county || '',
     zip: row.zip || row.zip_code,
     zipCode: row.zip_code || row.zip,
     propertyType: row.property_type,
@@ -422,6 +492,79 @@ export function rowToProperty(row) {
     assignedBuyerId: row.assigned_buyer_id || null,
     dateAdded: row.created_at,
     lastUpdated: row.updated_at,
+  };
+}
+
+export function rowToCounty(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    state: row.state || '',
+    countyName: row.county_name || '',
+    fipsCode: row.fips_code || '',
+    notes: row.notes || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function rowToCity(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    countyId: row.county_id || null,
+    state: row.state || '',
+    countyName: row.county_name || '',
+    cityName: row.city_name || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function rowToRealtor(row) {
+  if (!row) return null;
+  const phoneNumbers = Array.isArray(row.phone_numbers) ? row.phone_numbers : (row.phone ? [row.phone] : []);
+  const emailAddresses = Array.isArray(row.email_addresses) ? row.email_addresses : (row.email ? [row.email] : []);
+  return {
+    id: row.id,
+    name: row.name || '',
+    brokerage: row.brokerage || '',
+    phone: row.phone || (phoneNumbers[0] || ''),
+    email: row.email || (emailAddresses[0] || ''),
+    licenseNumber: row.license_number || '',
+    countyId: row.county_id || null,
+    state: row.state || '',
+    countyName: row.county_name || '',
+    city: row.city || '',
+    phoneNumbers,
+    emailAddresses,
+    source: row.source || 'Manual',
+    sourceUrl: row.source_url || '',
+    notes: row.notes || '',
+    notesList: row.notes_list || [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function rowToTitleCompany(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    companyName: row.company_name || '',
+    contactName: row.contact_name || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    address: row.address || '',
+    countyId: row.county_id || null,
+    state: row.state || '',
+    countyName: row.county_name || '',
+    source: row.source || 'Manual',
+    sourceUrl: row.source_url || '',
+    notes: row.notes || '',
+    notesList: row.notes_list || [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -754,12 +897,13 @@ const propertiesBase = createCrud(
     createdAt, updatedAt, status, topMatches, dealScore,
     bedrooms, bathrooms, sqft, lotSize, yearBuilt, source, sourceUrl,
     zillowUrl, redfinUrl, realtorUrl, propstreamUrl, batchleadsUrl, units,
-    lastContactDate, followUpDate, notesList, assignedBuyerId
+    lastContactDate, followUpDate, notesList, assignedBuyerId, county
   }) => ({
     id,
     address: address ?? '',
     city: city ?? '',
     state: state ?? '',
+    county: county ?? '',
     zip_code: zipCode ?? zip ?? '',
     property_type: propertyType ?? 'Single Family',
     lead_categories: leadCategories ?? [],
@@ -850,9 +994,97 @@ const properties = {
 // Export the resources so server/index.js can mount them easily
 export { sellers, buyers, investors, properties };
 
+const counties = createCrud(
+  'counties',
+  rowToCounty,
+  ({ id, state, countyName, fipsCode, notes, createdAt, updatedAt }) => ({
+    id,
+    state: (state ?? '').toUpperCase().slice(0, 2),
+    county_name: countyName ?? '',
+    fips_code: fipsCode ?? '',
+    notes: notes ?? '',
+    created_at: createdAt,
+    updated_at: updatedAt,
+  })
+);
+
+const cities = createCrud(
+  'cities',
+  rowToCity,
+  ({ id, countyId, state, countyName, cityName, createdAt, updatedAt }) => ({
+    id,
+    county_id: countyId ?? null,
+    state: (state ?? '').toUpperCase().slice(0, 2),
+    county_name: countyName ?? '',
+    city_name: cityName ?? '',
+    created_at: createdAt,
+    updated_at: updatedAt,
+  })
+);
+
+const realtors = createCrud(
+  'realtors',
+  rowToRealtor,
+  ({
+    id, name, brokerage, phone, email, licenseNumber, countyId, state,
+    countyName, city, phoneNumbers, emailAddresses, source, sourceUrl,
+    notes, notesList, createdAt, updatedAt
+  }) => {
+    const pNumbers = Array.isArray(phoneNumbers) ? phoneNumbers : (phone ? [phone] : []);
+    const eAddresses = Array.isArray(emailAddresses) ? emailAddresses : (email ? [email] : []);
+    return {
+      id,
+      name: name ?? '',
+      brokerage: brokerage ?? '',
+      phone: phone ?? (pNumbers[0] ?? ''),
+      email: email ?? (eAddresses[0] ?? ''),
+      license_number: licenseNumber ?? '',
+      county_id: countyId ?? null,
+      state: (state ?? '').toUpperCase().slice(0, 2),
+      county_name: countyName ?? '',
+      city: city ?? '',
+      phone_numbers: pNumbers,
+      email_addresses: eAddresses,
+      source: source ?? 'Manual',
+      source_url: sourceUrl ?? '',
+      notes: notes ?? '',
+      notes_list: notesList ?? [],
+      created_at: createdAt,
+      updated_at: updatedAt,
+    };
+  }
+);
+
+const titleCompanies = createCrud(
+  'title_companies',
+  rowToTitleCompany,
+  ({
+    id, companyName, contactName, phone, email, address, countyId, state,
+    countyName, source, sourceUrl, notes, notesList, createdAt, updatedAt
+  }) => ({
+    id,
+    company_name: companyName ?? '',
+    contact_name: contactName ?? '',
+    phone: phone ?? '',
+    email: email ?? '',
+    address: address ?? '',
+    county_id: countyId ?? null,
+    state: (state ?? '').toUpperCase().slice(0, 2),
+    county_name: countyName ?? '',
+    source: source ?? 'Manual',
+    source_url: sourceUrl ?? '',
+    notes: notes ?? '',
+    notes_list: notesList ?? [],
+    created_at: createdAt,
+    updated_at: updatedAt,
+  })
+);
+
+export { counties, cities, realtors, titleCompanies };
+
 // Clear all data from tables (respects FK order via TRUNCATE CASCADE)
 export async function clearAllData() {
-  await query('TRUNCATE TABLE buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, data_sources, export_logs CASCADE');
+  await query('TRUNCATE TABLE buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, data_sources, export_logs, realtors, title_companies, cities, counties CASCADE');
   return { cleared: true };
 }
 
@@ -1175,4 +1407,53 @@ export async function countAll() {
     investors: investorsCount,
     properties: propertiesCount,
   };
+}
+
+// Per-county rollups powering "number of sellers and buyers per area".
+// Uses SQL sub-selects/GROUP BY (not per-row JS) for scale. Buyers/investors are
+// counted demand-side: their buy-box (preferred_states / preferred_cities JSONB)
+// targets the area. Sellers are tied to an area via the property they own.
+export async function getAreaStats() {
+  const rows = await query(`
+    SELECT
+      c.id,
+      c.state,
+      c.county_name,
+      (SELECT COUNT(*)::int FROM properties p
+         WHERE UPPER(p.state) = UPPER(c.state)
+           AND LOWER(COALESCE(p.county, '')) = LOWER(c.county_name)) AS properties,
+      (SELECT COUNT(DISTINCT p.seller_id)::int FROM properties p
+         WHERE p.seller_id IS NOT NULL
+           AND UPPER(p.state) = UPPER(c.state)
+           AND LOWER(COALESCE(p.county, '')) = LOWER(c.county_name)) AS sellers,
+      (SELECT COUNT(*)::int FROM buyers b
+         WHERE b.preferred_states @> to_jsonb(ARRAY[UPPER(c.state)])
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(b.preferred_cities) pc
+              JOIN cities ci ON ci.county_id = c.id
+              WHERE LOWER(pc) = LOWER(ci.city_name)
+            )) AS buyers,
+      (SELECT COUNT(*)::int FROM investors i
+         WHERE i.preferred_states @> to_jsonb(ARRAY[UPPER(c.state)])
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(i.preferred_cities) pc
+              JOIN cities ci ON ci.county_id = c.id
+              WHERE LOWER(pc) = LOWER(ci.city_name)
+            )) AS investors,
+      (SELECT COUNT(*)::int FROM realtors r WHERE r.county_id = c.id) AS realtors,
+      (SELECT COUNT(*)::int FROM title_companies t WHERE t.county_id = c.id) AS title_companies
+    FROM counties c
+    ORDER BY c.state, c.county_name
+  `);
+  return rows.map(r => ({
+    id: r.id,
+    state: r.state,
+    countyName: r.county_name,
+    properties: r.properties ?? 0,
+    sellers: r.sellers ?? 0,
+    buyers: r.buyers ?? 0,
+    investors: r.investors ?? 0,
+    realtors: r.realtors ?? 0,
+    titleCompanies: r.title_companies ?? 0,
+  }));
 }

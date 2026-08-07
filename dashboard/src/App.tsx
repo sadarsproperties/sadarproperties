@@ -13,6 +13,9 @@ import SellersListPage from './pages/SellersListPage'
 import SendDealPage from './pages/SendDealPage'
 import PipelinePage from './pages/PipelinePage'
 import SettingsPage from './pages/SettingsPage'
+import RealtorsPage from './pages/RealtorsPage'
+import TitleCompaniesPage from './pages/TitleCompaniesPage'
+import AreasPage from './pages/AreasPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
 import SupportPage from './pages/SupportPage'
@@ -46,6 +49,9 @@ export default function App() {
         <Route path="/sellers" element={<ProtectedRoute><SellersListPage /></ProtectedRoute>} />
         <Route path="/send-deal" element={<ProtectedRoute><SendDealPage /></ProtectedRoute>} />
         <Route path="/pipeline" element={<ProtectedRoute><PipelinePage /></ProtectedRoute>} />
+        <Route path="/areas" element={<ProtectedRoute><AreasPage /></ProtectedRoute>} />
+        <Route path="/realtors" element={<ProtectedRoute><RealtorsPage /></ProtectedRoute>} />
+        <Route path="/title-companies" element={<ProtectedRoute><TitleCompaniesPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         
         {/* Public Utility pages */}

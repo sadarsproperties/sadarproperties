@@ -1,4 +1,4 @@
-import type { AppData, Buyer, Investor, MatchedContact, Property, Seller } from '../types';
+import type { AppData, AreaStat, Buyer, City, County, Investor, MatchedContact, Property, Realtor, Seller, TitleCompany } from '../types';
 import { getAuthToken } from './token';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
@@ -95,4 +95,49 @@ export const api = {
 
   clearDb: () =>
     request<{ ok: boolean }>('/admin/clear-db', { method: 'POST' }),
+
+  // Geography
+  getCounties: (params?: Record<string, string>) =>
+    request<County[]>('/counties' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  createCounty: (county: Partial<County>) =>
+    request<County>('/counties', { method: 'POST', body: JSON.stringify(county) }),
+  updateCounty: (id: string, county: Partial<County>) =>
+    request<County>(`/counties/${id}`, { method: 'PUT', body: JSON.stringify(county) }),
+  deleteCounty: (id: string) => request<{ ok: boolean }>(`/counties/${id}`, { method: 'DELETE' }),
+  bulkCounties: (items: Partial<County>[]) =>
+    request<County[]>('/counties/bulk', { method: 'POST', body: JSON.stringify(items) }),
+
+  getCities: (params?: Record<string, string>) =>
+    request<City[]>('/cities' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  createCity: (city: Partial<City>) =>
+    request<City>('/cities', { method: 'POST', body: JSON.stringify(city) }),
+  updateCity: (id: string, city: Partial<City>) =>
+    request<City>(`/cities/${id}`, { method: 'PUT', body: JSON.stringify(city) }),
+  deleteCity: (id: string) => request<{ ok: boolean }>(`/cities/${id}`, { method: 'DELETE' }),
+  bulkCities: (items: Partial<City>[]) =>
+    request<City[]>('/cities/bulk', { method: 'POST', body: JSON.stringify(items) }),
+
+  getAreaStats: () => request<AreaStat[]>('/geo/area-stats'),
+
+  // Realtors
+  getRealtors: (params?: Record<string, string>) =>
+    request<Realtor[]>('/realtors' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  createRealtor: (realtor: Partial<Realtor>) =>
+    request<Realtor>('/realtors', { method: 'POST', body: JSON.stringify(realtor) }),
+  updateRealtor: (id: string, realtor: Partial<Realtor>) =>
+    request<Realtor>(`/realtors/${id}`, { method: 'PUT', body: JSON.stringify(realtor) }),
+  deleteRealtor: (id: string) => request<{ ok: boolean }>(`/realtors/${id}`, { method: 'DELETE' }),
+  bulkRealtors: (items: Partial<Realtor>[]) =>
+    request<Realtor[]>('/realtors/bulk', { method: 'POST', body: JSON.stringify(items) }),
+
+  // Title companies
+  getTitleCompanies: (params?: Record<string, string>) =>
+    request<TitleCompany[]>('/title-companies' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  createTitleCompany: (tc: Partial<TitleCompany>) =>
+    request<TitleCompany>('/title-companies', { method: 'POST', body: JSON.stringify(tc) }),
+  updateTitleCompany: (id: string, tc: Partial<TitleCompany>) =>
+    request<TitleCompany>(`/title-companies/${id}`, { method: 'PUT', body: JSON.stringify(tc) }),
+  deleteTitleCompany: (id: string) => request<{ ok: boolean }>(`/title-companies/${id}`, { method: 'DELETE' }),
+  bulkTitleCompanies: (items: Partial<TitleCompany>[]) =>
+    request<TitleCompany[]>('/title-companies/bulk', { method: 'POST', body: JSON.stringify(items) }),
 };

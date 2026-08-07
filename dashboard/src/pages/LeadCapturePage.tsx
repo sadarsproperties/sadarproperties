@@ -16,6 +16,9 @@ const INGESTION_SOURCES = [
   'County Records',
   'Foreclosure Lists',
   'Tax Delinquent Lists',
+  'FSBO (For Sale By Owner)',
+  'Auction.com',
+  'Subject-To',
   'Manual'
 ]
 
@@ -40,6 +43,7 @@ export default function LeadCapturePage() {
   // Core Fields
   const [addr, setAddr] = useState('')
   const [city, setCity] = useState('')
+  const [county, setCounty] = useState('')
   const [state, setState] = useState('')
   const [zip, setZip] = useState('')
   const [propertyType, setPropertyType] = useState<string>(PROPERTY_TYPES[0])
@@ -110,6 +114,7 @@ export default function LeadCapturePage() {
       const payload = {
         address: addr.trim(),
         city: city.trim(),
+        county: county.trim(),
         state: state.trim().toUpperCase().slice(0, 2),
         zip: zip.trim(),
         zipCode: zip.trim(),
@@ -136,7 +141,7 @@ export default function LeadCapturePage() {
       setSavedMsg('Lead successfully created!')
       
       // Reset State
-      setAddr(''); setCity(''); setState(''); setZip(''); setAskingPrice(''); setArv(''); setRepairCosts(''); setFee('10,000')
+      setAddr(''); setCity(''); setCounty(''); setState(''); setZip(''); setAskingPrice(''); setArv(''); setRepairCosts(''); setFee('10,000')
       setBedrooms(''); setBathrooms(''); setSqft(''); setLotSize(''); setYearBuilt('')
       setName(''); setPhone(''); setNotes(''); setSelectedLeadCats([]); setSourceUrl('')
 
@@ -184,8 +189,9 @@ export default function LeadCapturePage() {
               placeholder="Street Address" 
               className="mb-3 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-lg font-semibold outline-none placeholder:text-[#B0B0B0] focus:border-[#1A3C34]" 
             />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
               <input value={city} onChange={e => setCity(e.target.value)} placeholder="City" className="rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#1A3C34]" />
+              <input value={county} onChange={e => setCounty(e.target.value)} placeholder="County" className="rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#1A3C34]" />
               <input value={state} onChange={e => setState(e.target.value)} placeholder="State (e.g. TX)" className="rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#1A3C34]" maxLength={2} />
               <input value={zip} onChange={e => setZip(e.target.value)} placeholder="ZIP Code" className="rounded-2xl border border-black/10 px-4 py-3 outline-none focus:border-[#1A3C34]" />
               <select value={propertyType} onChange={e => setPropertyType(e.target.value)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none focus:border-[#1A3C34]">

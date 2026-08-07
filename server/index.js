@@ -33,6 +33,11 @@ import {
   buyers,
   investors,
   properties,
+  counties,
+  cities,
+  realtors,
+  titleCompanies,
+  getAreaStats,
   query,
   autoMatchProperty,
 } from './db.js';
@@ -1080,6 +1085,37 @@ mountResource('sellers', sellers);
 mountResource('buyers', buyers);
 mountResource('investors', investors);
 mountResource('properties', properties);
+mountResource('counties', counties);
+mountResource('cities', cities);
+mountResource('realtors', realtors);
+mountResource('title-companies', titleCompanies);
+
+// ==================== GEOGRAPHY / AREA STATS ====================
+
+// Per-county rollups: sellers, buyers, investors, realtors, title companies, properties.
+app.get('/api/geo/area-stats', requireAuth, async (_req, res) => {
+  try {
+    res.json(await getAreaStats());
+  } catch (err) {
+    console.error('[Geo] area-stats error:', err.message);
+    res.status(500).json({ error: 'Failed to compute area stats: ' + err.message });
+  }
+});
+
+// County/city tree for dropdowns and area management.
+app.get('/api/geo/areas', requireAuth, async (_req, res) => {
+  try {
+    const [countyList, cityList] = await Promise.all([counties.list(), cities.list()]);
+    const tree = countyList.map(c => ({
+      ...c,
+      cities: cityList.filter(ci => ci.countyId === c.id),
+    }));
+    res.json(tree);
+  } catch (err) {
+    console.error('[Geo] areas error:', err.message);
+    res.status(500).json({ error: 'Failed to load areas: ' + err.message });
+  }
+});
 
 // ==================== AUTOMATED MATCHING & AI ====================
 
@@ -1203,6 +1239,10 @@ app.post('/api/admin/clear-db', requireAuth, async (req, res) => {
     await query('DELETE FROM sellers');
     await query('DELETE FROM buyers');
     await query('DELETE FROM investors');
+    await query('DELETE FROM realtors');
+    await query('DELETE FROM title_companies');
+    await query('DELETE FROM cities');
+    await query('DELETE FROM counties');
     res.json({ ok: true });
   } catch (err) {
     console.error('[Admin] Clear DB error:', err);

@@ -19,6 +19,9 @@ export const LEAD_CATEGORIES = [
   'Probate',
   'Rental Property',
   'Tired Landlord',
+  'FSBO',
+  'Auction',
+  'Subject To',
 ] as const;
 
 export const BUYER_TYPES = [
@@ -140,6 +143,7 @@ export interface Property {
   address: string;
   city: string;
   state: string;
+  county?: string;
   zip: string;
   zipCode?: string;
   propertyType: PropertyType;
@@ -182,6 +186,77 @@ export interface PropertyMetrics {
   offerMin: number | null;
   offerMax: number | null;
   dealScore: number | null;
+}
+
+export interface County {
+  id: string;
+  state: string;
+  countyName: string;
+  fipsCode?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface City {
+  id: string;
+  countyId: string | null;
+  state: string;
+  countyName: string;
+  cityName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Realtor {
+  id: string;
+  name: string;
+  brokerage?: string;
+  phone?: string;
+  email?: string;
+  licenseNumber?: string;
+  countyId?: string | null;
+  state?: string;
+  countyName?: string;
+  city?: string;
+  phoneNumbers?: string[];
+  emailAddresses?: string[];
+  source?: string;
+  sourceUrl?: string;
+  notes?: string;
+  notesList?: NoteEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleCompany {
+  id: string;
+  companyName: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  countyId?: string | null;
+  state?: string;
+  countyName?: string;
+  source?: string;
+  sourceUrl?: string;
+  notes?: string;
+  notesList?: NoteEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AreaStat {
+  id: string;
+  state: string;
+  countyName: string;
+  properties: number;
+  sellers: number;
+  buyers: number;
+  investors: number;
+  realtors: number;
+  titleCompanies: number;
 }
 
 export interface FilterState {

@@ -10,13 +10,23 @@ import { scrapeZillow } from './scrapers/zillow.js';
 import { scrapeFacebook } from './scrapers/facebook.js';
 import { scrapePropStream } from './scrapers/propstream.js';
 import { scrapeBatchLeads } from './scrapers/batchleads.js';
+import { scrapeFSBO } from './scrapers/fsbo.js';
+import { scrapeAuction } from './scrapers/auction.js';
+import { scrapeSubjectTo } from './scrapers/subjectto.js';
+import { scrapeRealtors } from './scrapers/realtorsDirectory.js';
+import { scrapeTitleCompanies } from './scrapers/titleDirectory.js';
 
 const scrapers = {
   craigslist: scrapeCraigslist,
   zillow: scrapeZillow,
   facebook: scrapeFacebook,
   propstream: scrapePropStream,
-  batchleads: scrapeBatchLeads
+  batchleads: scrapeBatchLeads,
+  fsbo: scrapeFSBO,
+  auction: scrapeAuction,
+  subjectto: scrapeSubjectTo,
+  realtors: scrapeRealtors,
+  titlecompanies: scrapeTitleCompanies
 };
 
 async function main() {
