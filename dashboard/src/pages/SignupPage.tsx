@@ -41,7 +41,7 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Link to="/onboarding">
+            <Link to="/">
               <Logo size={44} />
             </Link>
           </div>
