@@ -29,8 +29,7 @@ export default function SettingsPage() {
   const [titleCompaniesUrl, setTitleCompaniesUrl] = useState('');
   const [refreshInterval, setRefreshInterval] = useState('24h');
 
-  // Triggering state
-  const [triggering, setTriggering] = useState(false);
+  // Save status message (shown in the success/error banner)
   const [triggerStatus, setTriggerStatus] = useState('');
   const [loadingConfig, setLoadingConfig] = useState(true);
 
@@ -219,43 +218,6 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 6000);
   };
 
-  async function handleTriggerScrapes() {
-    setTriggering(true);
-    setTriggerStatus('');
-    const feeds: Record<string, string> = {};
-    if (zillowActive) feeds['Zillow'] = zillowUrl || 'https://www.zillow.com/homes/for_sale/';
-    if (craigslistActive) feeds['Craigslist'] = craigslistUrl || 'https://newyork.craigslist.org/search/apt';
-    if (facebookActive) feeds['Facebook'] = facebookUrl || 'https://www.facebook.com/marketplace/nyc/propertyrentals';
-    if (propStreamActive) feeds['PropStream'] = propStreamUrl || 'https://www.propstream.com/listings';
-    if (batchLeadsActive) feeds['BatchLeads'] = batchLeadsUrl || 'https://www.batchleads.io/properties';
-    if (fsboActive) feeds['FSBO'] = fsboUrl || 'https://fsbo.com/listings';
-    if (auctionActive) feeds['Auction'] = auctionUrl || 'https://www.auction.com/listings';
-    if (subjectToActive) feeds['Subject To'] = subjectToUrl || 'https://subjectto.com/listings';
-    if (realtorsActive) feeds['Realtors'] = realtorsUrl || 'https://www.realtor.com/realtor-directory';
-    if (titleCompaniesActive) feeds['Title Companies'] = titleCompaniesUrl || 'https://www.yellowpages.com/search?q=title+companies';
-
-    try {
-      const response = await fetch(`${API_BASE}/settings/trigger-scrapes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ feeds })
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setTriggerStatus('✓ ' + (data.message || 'Scrapes successfully triggered!'));
-      } else {
-        setTriggerStatus('✕ Error: ' + (data.error || 'Failed to trigger scans.'));
-      }
-    } catch (err: any) {
-      setTriggerStatus('✕ Error: ' + (err.message || 'Network error.'));
-    } finally {
-      setTriggering(false);
-      loadRunLog();
-    }
-  }
-
   return (
     <AppLayout title="Settings">
       <div className="flex flex-col gap-6 lg:flex-row">
@@ -299,12 +261,14 @@ export default function SettingsPage() {
         <div className="flex-1">
           <form onSubmit={handleSave} className="rounded-3xl border border-black/5 bg-white p-6 shadow-sm">
             {saved && (
-              <div className="mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/15 p-4 text-xs font-bold text-emerald-700 flex justify-between items-center">
-                <span>
-                  {triggerStatus.startsWith('✓')
-                    ? triggerStatus
-                    : '✓ Configuration updated successfully.'}
-                </span>
+              <div
+                className={`mb-4 rounded-2xl border p-4 text-xs font-bold flex justify-between items-center ${
+                  triggerStatus.startsWith('✕')
+                    ? 'bg-red-500/10 border-red-500/15 text-red-700'
+                    : 'bg-emerald-500/10 border-emerald-500/15 text-emerald-700'
+                }`}
+              >
+                <span>{triggerStatus || '✓ Configuration updated successfully.'}</span>
                 <button type="button" onClick={() => setSaved(false)}>✕</button>
               </div>
             )}
@@ -667,25 +631,6 @@ export default function SettingsPage() {
                           </tbody>
                         </table>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Manual trigger section */}
-                  <div className="border-t border-black/5 pt-4 mt-6">
-                    <h4 className="text-xs font-bold text-[#1A3C34] uppercase mb-1">Manual Action</h4>
-                    <p className="text-[10px] text-slate-450 mb-3">Staggered background scans run daily, but you can run them immediately in the background here.</p>
-                    <button
-                      type="button"
-                      disabled={triggering}
-                      onClick={handleTriggerScrapes}
-                      className="w-full py-3 px-4 rounded-2xl bg-[#F5A623] text-[#1A3C34] text-xs font-bold shadow hover:brightness-95 transition disabled:opacity-60"
-                    >
-                      {triggering ? 'Triggering Scans...' : '⚡ Run Active Scrapes Now'}
-                    </button>
-                    {triggerStatus && (
-                      <p className={`mt-2 text-xs font-semibold ${triggerStatus.startsWith('✕') ? 'text-red-650' : 'text-emerald-650'}`}>
-                        {triggerStatus}
-                      </p>
                     )}
                   </div>
                 </div>

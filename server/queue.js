@@ -295,12 +295,26 @@ export async function rescheduleScrapers({ userId, runNow = false } = {}) {
   if (useRedis && bullQueue) {
     try {
       const prefix = `scrape-${userId}-`;
-      const repeatables = await bullQueue.getRepeatableJobs();
-      for (const rj of repeatables) {
-        if (rj.id && rj.id.startsWith(prefix)) {
-          const srcName = rj.id.slice(prefix.length);
-          if (!active.some(s => s.name.toLowerCase().replace(/\s+/g, '-') === srcName)) {
-            await bullQueue.removeRepeatableByKey(rj.key);
+      // BullMQ v5 renamed repeatable jobs → job schedulers. Support both.
+      const hasV5Api = typeof bullQueue.getJobSchedulers === 'function';
+      if (hasV5Api) {
+        const schedulers = await bullQueue.getJobSchedulers();
+        for (const s of schedulers || []) {
+          if (s.id && s.id.startsWith(prefix)) {
+            const srcName = s.id.slice(prefix.length);
+            if (!active.some(sr => sr.name.toLowerCase().replace(/\s+/g, '-') === srcName)) {
+              await bullQueue.removeJobScheduler(s.id);
+            }
+          }
+        }
+      } else {
+        const repeatables = await bullQueue.getRepeatableJobs();
+        for (const rj of repeatables || []) {
+          if (rj.id && rj.id.startsWith(prefix)) {
+            const srcName = rj.id.slice(prefix.length);
+            if (!active.some(sr => sr.name.toLowerCase().replace(/\s+/g, '-') === srcName)) {
+              await bullQueue.removeRepeatableByKey(rj.key);
+            }
           }
         }
       }
