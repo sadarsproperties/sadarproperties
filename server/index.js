@@ -1680,11 +1680,6 @@ initDb()
       console.log(`[Cleanup Job] Done. Deleted ${count} files.`);
     });
 
-    registerJobProcessor('backup_db', async () => {
-      const { runDatabaseBackup } = await import('./backupService.js');
-      await runDatabaseBackup();
-    });
-
     await initQueue().catch(err => console.error('Failed to initialize Task Queue:', err));
 
     if (isProd) {

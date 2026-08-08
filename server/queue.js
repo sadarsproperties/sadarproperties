@@ -28,8 +28,10 @@ let QueueClass, WorkerClass;
 let useRedis = false;
 let bullQueue = null;
 let bullWorker = null;
+let bullMaintenanceQueue = null;
+let bullMaintenanceWorker = null;
 
-// In-memory scrape timers keyed by source name (used when Redis is unavailable)
+// In-memory scrape timers keyed by userId:source (used when Redis is unavailable)
 const scrapeTimers = new Map();
 
 // Registry of external job processors
@@ -113,6 +115,9 @@ class InMemoryQueue {
 }
 
 const memoryQueue = new InMemoryQueue('rewip-tasks');
+// Maintenance jobs (cleanup/backup) run on their own queue so they can never
+// block scrapes, matching, exports, etc.
+const maintenanceQueue = new InMemoryQueue('rewip-maintenance');
 
 function checkRedisConnection(redisUrl) {
   return new Promise((resolve) => {
@@ -173,6 +178,13 @@ export async function initQueue() {
         url: redisUrl
       }
     });
+    // Maintenance (cleanup/backup) runs on its own queue so a slow job there
+    // can never stall scrapes, matching, exports, etc.
+    bullMaintenanceQueue = new QueueClass('rewip-maintenance', {
+      connection: {
+        url: redisUrl
+      }
+    });
 
     await bullQueue.client;
     useRedis = true;
@@ -206,6 +218,11 @@ async function setupWorkers() {
         url: redisUrl
       }
     });
+    bullMaintenanceWorker = new WorkerClass('rewip-maintenance', processor, {
+      connection: {
+        url: redisUrl
+      }
+    });
     bullWorker.on('completed', (job) => {
       console.log(`[Queue] Job completed: ${job.id}`);
     });
@@ -214,32 +231,27 @@ async function setupWorkers() {
     });
   } else {
     memoryQueue.registerProcessor('*', processor);
+    maintenanceQueue.registerProcessor('*', processor);
   }
 }
 
 async function setupMaintenanceJobs() {
-  if (useRedis && bullQueue) {
+  if (useRedis && bullMaintenanceQueue) {
     try {
-      // 1. Daily export cleanup (midnight)
-      await bullQueue.add('cleanup_exports', {}, {
+      // Daily export cleanup (midnight)
+      await bullMaintenanceQueue.add('cleanup_exports', {}, {
         repeat: { cron: '0 0 * * *' }
       });
-      // 2. Daily database backup (1:00 AM)
-      await bullQueue.add('backup_db', {}, {
-        repeat: { cron: '0 1 * * *' }
-      });
-      console.log('[Queue] Repeatable maintenance cron jobs registered in Redis.');
+      console.log('[Queue] Repeatable maintenance cron job registered in Redis (separate queue).');
     } catch (err) {
-      console.error('[Queue] Failed to register maintenance cron jobs in Redis:', err.message);
+      console.error('[Queue] Failed to register maintenance cron job in Redis:', err.message);
     }
   } else {
-    console.log('[Queue] Scheduling in-memory maintenance runners (24 hour cycles).');
-    // Trigger cleanup and backups on boot
-    setTimeout(() => addJob('cleanup_exports', {}), 5000);
-    setTimeout(() => addJob('backup_db', {}), 10000);
-    // Set recurring 24 hour intervals
-    setInterval(() => addJob('cleanup_exports', {}), 24 * 60 * 60 * 1000);
-    setInterval(() => addJob('backup_db', {}), 24 * 60 * 60 * 1000);
+    console.log('[Queue] Scheduling in-memory maintenance runner (24 hour cycle, separate queue).');
+    // Trigger cleanup on boot
+    setTimeout(() => addMaintenanceJob('cleanup_exports', {}), 5000);
+    // Set recurring 24 hour interval
+    setInterval(() => addMaintenanceJob('cleanup_exports', {}), 24 * 60 * 60 * 1000);
   }
 }
 
@@ -367,4 +379,24 @@ export async function addJob(name, data, options = {}) {
       ...data
     });
   }
+}
+
+/**
+ * Maintenance jobs (cleanup_exports) use a separate queue so a slow
+ * or hanging maintenance job can never block scrapes/matching/exports.
+ */
+export async function addMaintenanceJob(name, data = {}) {
+  if (useRedis && bullMaintenanceQueue) {
+    return await bullMaintenanceQueue.add(name, data, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 2000
+      }
+    });
+  }
+  return await maintenanceQueue.add(name, {
+    attempts: 3,
+    ...data
+  });
 }
