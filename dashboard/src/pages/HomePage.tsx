@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import Logo from '../components/Logo'
+import { useNavigate } from 'react-router-dom'
+import MarketingNav from '../components/MarketingNav'
 import Footer from '../components/Footer'
-import { useAuth } from '../hooks/useAuth'
 import clevelandImg from '../assets/aerial_suburban_house_cleveland_map_view.jpg'
 import detroitImg from '../assets/aerial_suburban_house_detroit_map_view.jpg'
 import indianapolisImg from '../assets/aerial_suburban_house_indianapolis_map_view.jpg'
@@ -60,7 +59,6 @@ const MARKETS = [
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -73,39 +71,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#F9F6F1]">
       {/* ── Nav (over hero) ── */}
-      <nav className="absolute inset-x-0 top-0 z-50 bg-gradient-to-b from-black/45 to-transparent">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link to="/" aria-label="Sadar Properties home">
-            <Logo size={38} dark />
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              to="#features"
-              className="hidden rounded-2xl px-4 py-2 text-sm font-semibold text-white/85 hover:text-white sm:block"
-            >
-              Features
-            </Link>
-            <Link
-              to="#markets"
-              className="hidden rounded-2xl px-4 py-2 text-sm font-semibold text-white/85 hover:text-white sm:block"
-            >
-              Markets
-            </Link>
-            <button
-              onClick={() => navigate(user ? '/dashboard' : '/login')}
-              className="rounded-2xl border border-white/25 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
-            >
-              {user ? 'Dashboard' : 'Log in'}
-            </button>
-            <button
-              onClick={() => navigate('/signup')}
-              className="rounded-2xl bg-[#F5A623] px-4 py-2 text-sm font-bold text-[#1A3C34] shadow-lg shadow-amber-900/30 hover:brightness-105"
-            >
-              Get Started
-            </button>
-          </div>
-        </div>
-      </nav>
+      <MarketingNav />
 
       {/* ── Hero slider (chef-academy style) ── */}
       <section className="relative overflow-hidden" style={{ minHeight: 'min(92vh, 780px)' }}>
