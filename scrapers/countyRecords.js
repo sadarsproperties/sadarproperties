@@ -43,7 +43,7 @@ export async function scrapeCountyRecords(context, targetUrl) {
   const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
   if (isBlocked(title, bodyText)) {
     throw new Error(
-      'County records site blocked this session (bot protection). Try a different county URL, or one served as plain HTML.'
+      'This county records site is currently unavailable. Try a different county URL.'
     );
   }
 

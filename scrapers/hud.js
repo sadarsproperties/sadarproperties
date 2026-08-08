@@ -53,7 +53,7 @@ export async function scrapeHUD(context, targetUrl, location = 'OH') {
   const title = await page.title();
   const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
   if (/access denied|blocked|captcha|just a moment|403/i.test(title + ' ' + bodyText)) {
-    throw new Error('HUD Home Store blocked this session (bot protection).');
+    throw new Error('HUD Home Store is currently unavailable from this network.');
   }
 
   // Drive the location search (HUD results require an explicit search)

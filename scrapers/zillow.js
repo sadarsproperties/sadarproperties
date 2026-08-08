@@ -337,7 +337,7 @@ async function scrapeZillowBrowser(context, targetUrl) {
     // instead of hanging for the 2-minute manual-verification window.
     if (process.env.SCRAPER_HEADLESS === 'true') {
       throw new Error(
-        'Zillow blocked this session (PerimeterX "Press & Hold"). Headless mode cannot solve it — use a clean/residential IP (set PROXY_SERVER) or run from an approved network.'
+        'Zillow is currently unavailable from this network (the site blocks automated access). Please try again later.'
       );
     }
 
@@ -354,7 +354,7 @@ async function scrapeZillowBrowser(context, targetUrl) {
     const cleared = await waitForBlockToClear(page);
     if (!cleared) {
       throw new Error(
-        'Zillow blocked this session. Solve the "Press & Hold" challenge in the browser window, then rerun the scraper.'
+        'Zillow is currently unavailable from this network (the site blocks automated access). Please try again later.'
       );
     }
 

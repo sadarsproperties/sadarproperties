@@ -67,7 +67,7 @@ export async function scrapeRedfin(context, targetUrl) {
   const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
   if (isBlocked(title, bodyText)) {
     throw new Error(
-      'Redfin blocked this session (CloudFront bot protection). Use a clean/residential IP (set PROXY_SERVER) or run from an approved network.'
+      'Redfin is currently unavailable from this network (the site blocks automated access). Please try again later.'
     );
   }
 

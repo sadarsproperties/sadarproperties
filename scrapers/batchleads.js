@@ -54,7 +54,7 @@ export async function scrapeBatchLeads(context, targetUrl) {
       (await page.evaluate(() => !!document.querySelector('input[type="password"]')).catch(() => true));
     if (process.env.SCRAPER_HEADLESS === 'true' && stillOnLogin) {
       throw new Error(
-        'BatchLeads login failed in headless mode (wrong credentials or CAPTCHA). Check BATCHLEADS_EMAIL/PASSWORD in .env, or run once in headed mode to save session cookies.'
+        'BatchLeads login failed. Check your credentials and try again.'
       );
     }
 

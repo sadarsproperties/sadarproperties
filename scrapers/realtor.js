@@ -38,7 +38,7 @@ export async function scrapeRealtor(context, targetUrl) {
   const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
   if (isBlocked(title, bodyText)) {
     throw new Error(
-      'Realtor.com blocked this session (anti-bot protection). Use a clean/residential IP (set PROXY_SERVER) or run from an approved network.'
+      'Realtor.com is currently unavailable from this network (the site blocks automated access). Please try again later.'
     );
   }
 

@@ -284,8 +284,8 @@ export default function SettingsPage() {
             and Title Companies pages. You can change this anytime in Settings.
           </p>
           <p className="mt-2 text-xs font-semibold text-[#B87A0A]">
-            Tip: Craigslist, County Records and HUD are free and work right now. Zillow / Redfin /
-            Realtor.com / FSBO / Auction are blocked from server IPs unless you add a proxy.
+            Tip: Craigslist, County Records and HUD start pulling deals immediately. You can add
+            more sources anytime.
           </p>
         </div>
       )}

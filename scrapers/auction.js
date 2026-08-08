@@ -26,7 +26,7 @@ export async function scrapeAuction(context, targetUrl) {
     const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
     if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(title + ' ' + bodyText)) {
       throw new Error(
-        'Auction.com blocked this session (bot protection). Use a clean/residential IP (set PROXY_SERVER) or a different source.'
+        'Auction.com is currently unavailable from this network (the site blocks automated access). Please try again later.'
       );
     }
 

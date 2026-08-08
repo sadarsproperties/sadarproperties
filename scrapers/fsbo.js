@@ -26,7 +26,7 @@ export async function scrapeFSBO(context, targetUrl) {
     const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
     if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(title + ' ' + bodyText)) {
       throw new Error(
-        'FSBO blocked this session (bot protection on forsalebyowner.com). Use a clean/residential IP (set PROXY_SERVER) or a different source.'
+        'FSBO is currently unavailable from this network (the site blocks automated access). Please try again later.'
       );
     }
 
