@@ -624,7 +624,7 @@ function craigslistSubdomain(city) {
 }
 
 export async function runScrapeTask(data) {
-  const { source, url, filters } = data || {};
+  const { source, url, filters, userId } = data || {};
   if (!source) {
     throw new Error('runScrapeTask: Missing source parameter');
   }
@@ -660,12 +660,15 @@ export async function runScrapeTask(data) {
     throw new Error(`runScrapeTask: No scraper class registered for source "${source}"`);
   }
 
+  // Bind the owning user so every saved record is scoped to them
+  scraper.userId = userId;
+
   // Load saved areas (cities/counties) so the configured markets drive the scrape
   let areas = data.areas;
   if (!areas || !areas.length) {
     try {
       const { cities } = await import('./db.js');
-      const cityRows = await cities.list();
+      const cityRows = await cities.list(userId);
       areas = cityRows.map(c => ({ city: c.cityName, state: c.state, countyName: c.countyName }));
     } catch (err) {
       console.warn(`[runScrapeTask] Could not load saved areas: ${err.message}`);
@@ -682,7 +685,7 @@ export async function runScrapeTask(data) {
   try {
     const { startScrapeRun } = await import('./db.js');
     const urlLabel = (targets.filter(Boolean).join(' | ') || (url || '').trim() || '(default URL)').slice(0, 500);
-    runId = await startScrapeRun(source, urlLabel);
+    runId = await startScrapeRun(userId, source, urlLabel);
   } catch (err) {
     console.warn(`[runScrapeTask] Could not log scrape run start: ${err.message}`);
   }

@@ -157,7 +157,7 @@ export async function initQueue() {
     useRedis = false;
     setupWorkers();
     setupMaintenanceJobs();
-    await rescheduleScrapers({ runNow: true });
+    await rescheduleAllUsers();
     return;
   }
 
@@ -184,7 +184,7 @@ export async function initQueue() {
 
   setupWorkers();
   setupMaintenanceJobs();
-  await rescheduleScrapers({ runNow: true });
+  await rescheduleAllUsers();
 }
 
 async function setupWorkers() {
@@ -244,11 +244,11 @@ async function setupMaintenanceJobs() {
 }
 
 /**
- * Load the saved scrape configuration, merged against defaults so new sources
- * always appear even if the stored config is older.
+ * Load the saved scrape configuration for a user, merged against defaults so new
+ * sources always appear even if the stored config is older.
  */
-export async function loadScrapeConfig() {
-  const saved = await getSetting(SCRAPE_SETTINGS_KEY, null);
+export async function loadScrapeConfig(userId) {
+  const saved = await getSetting(userId, SCRAPE_SETTINGS_KEY, null);
   if (!saved || !Array.isArray(saved.sources)) {
     return { sources: SCRAPE_SOURCES_DEFAULT.map(s => ({ ...s })), refreshInterval: '24h' };
   }
@@ -260,60 +260,86 @@ export async function loadScrapeConfig() {
   return { sources, refreshInterval };
 }
 
-function scrapeJobData(source) {
-  return { source: source.name, url: (source.url || '').trim() };
+function scrapeJobData(source, userId) {
+  return { source: source.name, url: (source.url || '').trim(), userId };
+}
+
+function scrapeJobIdFor(userId, sourceName) {
+  return `scrape-${userId}-${sourceName.toLowerCase().replace(/\s+/g, '-')}`;
 }
 
 /**
- * (Re)build the background scrape schedule from the saved settings.
+ * (Re)build the background scrape schedule for ONE user from their saved settings.
  * - Redis mode: repeatable BullMQ jobs keyed by jobId (re-adding replaces).
- * - In-memory mode: per-source setInterval timers.
+ * - In-memory mode: per-user/per-source setInterval timers.
  * When runNow is true, fires an initial staggered run for each active source.
  */
-export async function rescheduleScrapers({ runNow = false } = {}) {
-  const config = await loadScrapeConfig();
+export async function rescheduleScrapers({ userId, runNow = false } = {}) {
+  if (!userId) return;
+  const config = await loadScrapeConfig(userId);
   const intervalMs = REFRESH_INTERVALS_MS[config.refreshInterval] || REFRESH_INTERVALS_MS['24h'];
   const active = config.sources.filter(s => s.active);
 
   if (useRedis && bullQueue) {
     try {
-      // Remove repeatable jobs for sources that are no longer active
+      const prefix = `scrape-${userId}-`;
       const repeatables = await bullQueue.getRepeatableJobs();
       for (const rj of repeatables) {
-        const srcName = rj.id && rj.id.startsWith('scrape-') ? rj.id.slice('scrape-'.length) : null;
-        if (srcName && !active.some(s => s.name.toLowerCase().replace(/\s+/g, '-') === srcName)) {
-          await bullQueue.removeRepeatableByKey(rj.key);
+        if (rj.id && rj.id.startsWith(prefix)) {
+          const srcName = rj.id.slice(prefix.length);
+          if (!active.some(s => s.name.toLowerCase().replace(/\s+/g, '-') === srcName)) {
+            await bullQueue.removeRepeatableByKey(rj.key);
+          }
         }
       }
       for (const src of active) {
-        const jobId = `scrape-${src.name.toLowerCase().replace(/\s+/g, '-')}`;
-        await bullQueue.add('scrape_source', scrapeJobData(src), {
-          jobId,
+        await bullQueue.add('scrape_source', scrapeJobData(src, userId), {
+          jobId: scrapeJobIdFor(userId, src.name),
           repeat: { every: intervalMs },
           removeOnComplete: 100,
           removeOnFail: 100,
         });
       }
-      console.log(`[Queue] Scrape schedule updated (Redis): ${active.map(s => s.name).join(', ') || 'none'} every ${config.refreshInterval}.`);
+      console.log(`[Queue] User ${userId} scrape schedule (Redis): ${active.map(s => s.name).join(', ') || 'none'} every ${config.refreshInterval}.`);
     } catch (err) {
-      console.error('[Queue] Failed to update Redis scrape schedule:', err.message);
+      console.error(`[Queue] Failed to update Redis scrape schedule for user ${userId}:`, err.message);
     }
   } else {
-    // Clear existing in-memory timers
-    for (const [, timer] of scrapeTimers) clearInterval(timer);
-    scrapeTimers.clear();
-    for (const src of active) {
-      const timer = setInterval(() => addJob('scrape_source', scrapeJobData(src)), intervalMs);
-      scrapeTimers.set(src.name, timer);
+    // Remove only this user's timers (other users' timers stay intact)
+    const stale = [];
+    for (const [key, timer] of scrapeTimers) {
+      if (key.startsWith(`${userId}:`)) {
+        clearInterval(timer);
+        stale.push(key);
+      }
     }
-    console.log(`[Queue] Scrape schedule updated (in-memory): ${active.map(s => s.name).join(', ') || 'none'} every ${config.refreshInterval}.`);
+    for (const key of stale) scrapeTimers.delete(key);
+
+    for (const src of active) {
+      const key = `${userId}:${src.name}`;
+      const timer = setInterval(() => addJob('scrape_source', scrapeJobData(src, userId)), intervalMs);
+      scrapeTimers.set(key, timer);
+    }
+    console.log(`[Queue] User ${userId} scrape schedule (in-memory): ${active.map(s => s.name).join(', ') || 'none'} every ${config.refreshInterval}.`);
   }
 
   // Optional immediate staggered run (boot) so pages populate right away
   if (runNow) {
     active.forEach((src, idx) => {
-      setTimeout(() => addJob('scrape_source', scrapeJobData(src)), 15000 + idx * 5000);
+      setTimeout(() => addJob('scrape_source', scrapeJobData(src, userId)), 15000 + idx * 5000);
     });
+  }
+}
+
+/**
+ * Rebuild schedules for every registered user (called on boot) so each user's
+ * own settings drive their own background scraping.
+ */
+export async function rescheduleAllUsers() {
+  const { listUsers } = await import('./db.js');
+  const users = await listUsers();
+  for (const u of users) {
+    await rescheduleScrapers({ userId: u.id, runNow: true });
   }
 }
 

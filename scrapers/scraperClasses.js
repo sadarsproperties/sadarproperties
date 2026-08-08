@@ -224,10 +224,10 @@ export class DirectoryScraper extends BaseScraper {
         );
         if (existing && existing.length > 0) {
           console.log(`[DirectoryScraper - ${this.sourceName}] Duplicate title company "${name}". Updating.`);
-          return await titleCompanies.update(existing[0].id, normalizedItem);
+          return await titleCompanies.update(existing[0].id, normalizedItem, this.userId);
         }
         console.log(`[DirectoryScraper - ${this.sourceName}] Inserting title company "${name}".`);
-        return await titleCompanies.insert(normalizedItem);
+        return await titleCompanies.insert(normalizedItem, this.userId);
       } catch (err) {
         console.error(`[DirectoryScraper - ${this.sourceName}] Error saving title company:`, err.message);
         throw err;
@@ -244,10 +244,10 @@ export class DirectoryScraper extends BaseScraper {
       );
       if (existing && existing.length > 0) {
         console.log(`[DirectoryScraper - ${this.sourceName}] Duplicate realtor "${name}". Updating.`);
-        return await realtors.update(existing[0].id, normalizedItem);
+        return await realtors.update(existing[0].id, normalizedItem, this.userId);
       }
       console.log(`[DirectoryScraper - ${this.sourceName}] Inserting realtor "${name}".`);
-      return await realtors.insert(normalizedItem);
+      return await realtors.insert(normalizedItem, this.userId);
     } catch (err) {
       console.error(`[DirectoryScraper - ${this.sourceName}] Error saving realtor:`, err.message);
       throw err;

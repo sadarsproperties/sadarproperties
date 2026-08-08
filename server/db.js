@@ -48,26 +48,29 @@ export async function query(text, params = []) {
   return res.rows;
 }
 
-// ── Simple key/value settings store (JSONB) ──
-export async function getSetting(key, fallback = null) {
-  const rows = await query('SELECT value FROM settings WHERE key = $1', [key]);
+// ── Simple per-user key/value settings store (JSONB) ──
+export async function getSetting(userId, key, fallback = null) {
+  if (!userId) return fallback;
+  const rows = await query('SELECT value FROM settings WHERE user_id = $1 AND key = $2', [userId, key]);
   return rows.length > 0 ? rows[0].value : fallback;
 }
 
-export async function setSetting(key, value) {
+export async function setSetting(userId, key, value) {
+  if (!userId) throw new Error('setSetting: user_id is required');
   await query(
-    `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2::jsonb, NOW())
-     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-    [key, JSON.stringify(value)]
+    `INSERT INTO settings (user_id, key, value, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
+     ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [userId, key, JSON.stringify(value)]
   );
   return value;
 }
 
-// ── Scrape run log (per-source status readout) ──
-export async function startScrapeRun(source, url = '') {
+// ── Scrape run log (per-source status readout, per user) ──
+export async function startScrapeRun(userId, source, url = '') {
+  if (!userId) throw new Error('startScrapeRun: user_id is required');
   const rows = await query(
-    `INSERT INTO scrape_runs (source, url, status, started_at) VALUES ($1, $2, 'running', NOW()) RETURNING id`,
-    [source, url]
+    `INSERT INTO scrape_runs (user_id, source, url, status, started_at) VALUES ($1, $2, $3, 'running', NOW()) RETURNING id`,
+    [userId, source, url]
   );
   return rows[0].id;
 }
@@ -87,18 +90,20 @@ export async function failScrapeRun(id, error = '') {
   );
 }
 
-export async function getScrapeRuns(limit = 50) {
+export async function getScrapeRuns(userId, limit = 50) {
+  if (!userId) return [];
   // Recover runs stuck as 'running' by a crash/hang (e.g. before job timeouts
   // existed) — mark them failed so the readout never shows a dead job spinning.
   await query(
     `UPDATE scrape_runs SET status = 'failed',
        error = COALESCE(NULLIF(error, ''), 'Stale run — process interrupted or hung before finishing'),
        finished_at = NOW()
-     WHERE status = 'running' AND started_at < NOW() - INTERVAL '40 minutes'`
+     WHERE user_id = $1 AND status = 'running' AND started_at < NOW() - INTERVAL '40 minutes'`,
+    [userId]
   );
   return query(
-    `SELECT * FROM scrape_runs ORDER BY started_at DESC LIMIT $1`,
-    [Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)]
+    `SELECT * FROM scrape_runs WHERE user_id = $1 ORDER BY started_at DESC LIMIT $2`,
+    [userId, Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)]
   );
 }
 
@@ -399,6 +404,27 @@ export async function initDb() {
       finished_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    -- ── Multi-tenant isolation: every resource belongs to exactly one user ──
+    ALTER TABLE properties ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE buyers ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE investors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE counties ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE cities ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE realtors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE title_companies ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+    ALTER TABLE scrape_runs ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+
+    -- Settings are per-user now (previously one global key/value row).
+    DROP TABLE IF EXISTS settings;
+    CREATE TABLE settings (
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      key TEXT NOT NULL,
+      value JSONB NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (user_id, key)
+    );
+
     -- Geographic county tag on properties for per-area rollups (idempotent)
     ALTER TABLE properties ADD COLUMN IF NOT EXISTS county TEXT DEFAULT '';
 
@@ -655,6 +681,11 @@ export function rowToUser(row) {
 
 // ==================== USER HELPERS ====================
 
+export async function listUsers() {
+  const rows = await query('SELECT id, email, name FROM users ORDER BY created_at');
+  return rows;
+}
+
 export async function getUserById(id) {
   const rows = await query('SELECT * FROM users WHERE id = $1', [id]);
   return rowToUser(rows[0]);
@@ -726,19 +757,23 @@ function serializeParam(col, value) {
 
 function createCrud(table, mapRow, mapBodyToDb) {
   return {
-    async list() {
-      const rows = await query(`SELECT * FROM ${table} ORDER BY created_at DESC`);
+    async list(userId) {
+      if (!userId) return [];
+      const rows = await query(`SELECT * FROM ${table} WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
       return rows.map(mapRow);
     },
-    async get(id) {
-      const rows = await query(`SELECT * FROM ${table} WHERE id = $1`, [id]);
+    async get(id, userId) {
+      if (!userId) return null;
+      const rows = await query(`SELECT * FROM ${table} WHERE id = $1 AND user_id = $2`, [id, userId]);
       return rows[0] ? mapRow(rows[0]) : null;
     },
-    async insert(payload) {
+    async insert(payload, userId) {
+      if (!userId) throw new Error(`Cannot insert into ${table}: user_id is required`);
       const id = payload.id || randomUUID();
       const createdAt = payload.createdAt || new Date().toISOString();
       const updatedAt = payload.updatedAt || createdAt;
       const values = mapBodyToDb({ ...payload, id, createdAt, updatedAt });
+      values.user_id = userId;
 
       const columns = Object.keys(values);
       const placeholders = columns.map((_, i) => `$${i + 1}`);
@@ -748,30 +783,32 @@ function createCrud(table, mapRow, mapBodyToDb) {
         `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
         params
       );
-      return this.get(id);
+      return this.get(id, userId);
     },
-    async update(id, payload) {
-      const existing = await this.get(id);
+    async update(id, payload, userId) {
+      if (!userId) return null;
+      const existing = await this.get(id, userId);
       if (!existing) return null;
 
       const updatedAt = new Date().toISOString();
       const values = mapBodyToDb({ ...existing, ...payload, id, createdAt: existing.createdAt, updatedAt });
 
       const assignments = Object.keys(values)
-        .filter((key) => key !== 'id')
+        .filter((key) => key !== 'id' && key !== 'user_id')
         .map((key, i) => `${key} = $${i + 1}`);
 
       const params = Object.keys(values)
-        .filter((key) => key !== 'id')
+        .filter((key) => key !== 'id' && key !== 'user_id')
         .map((key) => serializeParam(key, values[key]));
-      params.push(id);
+      params.push(id, userId);
 
-      await query(`UPDATE ${table} SET ${assignments.join(', ')} WHERE id = $${params.length}`, params);
-      return this.get(id);
+      await query(`UPDATE ${table} SET ${assignments.join(', ')} WHERE id = $${params.length - 1} AND user_id = $${params.length}`, params);
+      return this.get(id, userId);
     },
-    async remove(id) {
-      const result = await query(`DELETE FROM ${table} WHERE id = $1`, [id]);
-      return result.length > 0 || (result.rowCount ?? 0) > 0; // pg returns rowCount on command
+    async remove(id, userId) {
+      if (!userId) return false;
+      const result = await pool.query(`DELETE FROM ${table} WHERE id = $1 AND user_id = $2`, [id, userId]);
+      return (result.rowCount ?? 0) > 0;
     },
   };
 }
@@ -887,14 +924,14 @@ const buyersBase = createCrud(
 
 const buyers = {
   ...buyersBase,
-  async insert(payload) {
-    const res = await buyersBase.insert(payload);
-    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+  async insert(payload, userId) {
+    const res = await buyersBase.insert(payload, userId);
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', { userId })).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   },
-  async update(id, payload) {
-    const res = await buyersBase.update(id, payload);
-    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+  async update(id, payload, userId) {
+    const res = await buyersBase.update(id, payload, userId);
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', { userId })).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   }
 };
@@ -947,14 +984,14 @@ const investorsBase = createCrud(
 
 const investors = {
   ...investorsBase,
-  async insert(payload) {
-    const res = await investorsBase.insert(payload);
-    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+  async insert(payload, userId) {
+    const res = await investorsBase.insert(payload, userId);
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', { userId })).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   },
-  async update(id, payload) {
-    const res = await investorsBase.update(id, payload);
-    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+  async update(id, payload, userId) {
+    const res = await investorsBase.update(id, payload, userId);
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', { userId })).catch(err => console.error('Error queuing run_matching job:', err));
     return res;
   }
 };
@@ -1011,13 +1048,13 @@ const propertiesBase = createCrud(
 
 const properties = {
   ...propertiesBase,
-  async insert(payload) {
+  async insert(payload, userId) {
     // 1. Compute deal score
     const score = payload.dealScore !== undefined && payload.dealScore !== null
       ? payload.dealScore
-      : await computeDealScore(payload);
+      : await computeDealScore(payload, userId);
     
-    // 2. Find matches
+    // 2. Find matches (scoped to the same user)
     const tempProperty = {
       propertyType: payload.propertyType || 'Single Family',
       price: Number(payload.price || payload.askingPrice || 0),
@@ -1025,7 +1062,7 @@ const properties = {
       city: payload.city || '',
       units: payload.units != null ? Number(payload.units) : 1,
     };
-    const matches = await findMatchesForProperty(tempProperty);
+    const matches = await findMatchesForProperty(tempProperty, userId);
 
     // 3. Insert into database
     const result = await propertiesBase.insert({
@@ -1033,12 +1070,12 @@ const properties = {
       dealScore: score,
       topMatches: matches,
       status: payload.status || (matches.length > 0 ? 'matched' : 'new'),
-    });
-    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+    }, userId);
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', { userId })).catch(err => console.error('Error queuing run_matching job:', err));
     return result;
   },
-  async update(id, payload) {
-    const existing = await this.get(id);
+  async update(id, payload, userId) {
+    const existing = await this.get(id, userId);
     if (!existing) return null;
 
     // Merge existing and updates
@@ -1047,17 +1084,17 @@ const properties = {
     // Compute deal score
     const score = payload.dealScore !== undefined && payload.dealScore !== null
       ? payload.dealScore
-      : await computeDealScore(merged);
+      : await computeDealScore(merged, userId);
 
-    // Re-find matches
-    const matches = await findMatchesForProperty(merged);
+    // Re-find matches (scoped to the same user)
+    const matches = await findMatchesForProperty(merged, userId);
 
     const result = await propertiesBase.update(id, {
       ...payload,
       dealScore: score,
       topMatches: matches,
-    });
-    import('./queue.js').then(({ addJob }) => addJob('run_matching', {})).catch(err => console.error('Error queuing run_matching job:', err));
+    }, userId);
+    import('./queue.js').then(({ addJob }) => addJob('run_matching', { userId })).catch(err => console.error('Error queuing run_matching job:', err));
     return result;
   }
 };
@@ -1159,13 +1196,21 @@ export async function clearAllData() {
   return { cleared: true };
 }
 
+// Wipe every tenant's data (properties, contacts, areas, scrape history, settings)
+// while keeping the users table intact. Used for a clean start.
+export async function wipeAllData() {
+  await query('TRUNCATE TABLE buyer_matches, crm_activities, crm_notes, properties, sellers, buyers, investors, realtors, title_companies, cities, counties, scrape_runs CASCADE');
+  await query('DELETE FROM settings');
+  return { wiped: true };
+}
+
 // Legacy / convenience functions (still async now)
-export async function getAllData() {
+export async function getAllData(userId) {
   const [sellersData, buyersData, investorsData, propertiesData] = await Promise.all([
-    sellers.list(),
-    buyers.list(),
-    investors.list(),
-    properties.list(),
+    sellers.list(userId),
+    buyers.list(userId),
+    investors.list(userId),
+    properties.list(userId),
   ]);
   return {
     sellers: sellersData,
@@ -1289,8 +1334,8 @@ function serverCalculateMatchScore(property, buyerOrInvestor) {
   };
 }
 
-export async function findMatchesForProperty(property) {
-  const [allBuyers, allInvestors] = await Promise.all([buyers.list(), investors.list()]);
+export async function findMatchesForProperty(property, userId) {
+  const [allBuyers, allInvestors] = await Promise.all([buyers.list(userId), investors.list(userId)]);
   const matches = [];
 
   for (const b of allBuyers) {
@@ -1336,41 +1381,41 @@ export async function findMatchesForProperty(property) {
   return matches.slice(0, 15); // top 15 matches
 }
 
-export async function autoMatchProperty(propertyId) {
-  const prop = await properties.get(propertyId);
+export async function autoMatchProperty(propertyId, userId) {
+  const prop = await properties.get(propertyId, userId);
   if (!prop) return null;
 
-  const matches = await findMatchesForProperty(prop);
+  const matches = await findMatchesForProperty(prop, userId);
 
   // Real-time deal score based on 5.4 requirements
-  const dealScore = await computeDealScore(prop);
+  const dealScore = await computeDealScore(prop, userId);
 
   const updated = await properties.update(propertyId, {
     topMatches: matches,
     dealScore,
     status: prop.status === 'new' ? 'matched' : prop.status,
-  });
+  }, userId);
 
   return { property: updated, matches, dealScore };
 }
 
-export async function reRunMatchingForAllProperties() {
-  const allProperties = await propertiesBase.list();
+export async function reRunMatchingForAllProperties(userId) {
+  const allProperties = await propertiesBase.list(userId);
   for (const prop of allProperties) {
-    const matches = await findMatchesForProperty(prop);
+    const matches = await findMatchesForProperty(prop, userId);
     const score = prop.dealScore !== undefined && prop.dealScore !== null
       ? prop.dealScore
-      : await computeDealScore(prop);
+      : await computeDealScore(prop, userId);
     await propertiesBase.update(prop.id, {
       topMatches: matches,
       dealScore: score,
       status: prop.status === 'new' && matches.length > 0 ? 'matched' : prop.status
-    });
+    }, userId);
   }
 }
 
 // Helper to compute score (can be called from routes)
-export async function computeDealScore(property) {
+export async function computeDealScore(property, userId) {
   const { arv, repairCosts, price, askingPrice, leadCategories, createdAt } = property;
   if (!arv || arv <= 0) return null;
 
@@ -1436,7 +1481,7 @@ export async function computeDealScore(property) {
   // 5. Price Range Desirability - 15% weight
   let priceDesirabilityScore = 100;
   try {
-    const buyers = await query('SELECT max_budget FROM buyers WHERE max_budget IS NOT NULL AND max_budget > 0');
+    const buyers = await query(`SELECT max_budget FROM buyers WHERE user_id = $1 AND max_budget IS NOT NULL AND max_budget > 0`, [userId || '00000000-0000-0000-0000-000000000000']);
     if (buyers && buyers.length > 0) {
       const matchingBuyers = buyers.filter(b => Number(b.max_budget) >= priceVal);
       priceDesirabilityScore = (matchingBuyers.length / buyers.length) * 100;
@@ -1484,38 +1529,43 @@ export async function countAll() {
 // Uses SQL sub-selects/GROUP BY (not per-row JS) for scale. Buyers/investors are
 // counted demand-side: their buy-box (preferred_states / preferred_cities JSONB)
 // targets the area. Sellers are tied to an area via the property they own.
-export async function getAreaStats() {
+export async function getAreaStats(userId) {
   const rows = await query(`
     SELECT
       c.id,
       c.state,
       c.county_name,
       (SELECT COUNT(*)::int FROM properties p
-         WHERE UPPER(p.state) = UPPER(c.state)
+         WHERE p.user_id = $1
+           AND UPPER(p.state) = UPPER(c.state)
            AND LOWER(COALESCE(p.county, '')) = LOWER(c.county_name)) AS properties,
       (SELECT COUNT(DISTINCT p.seller_id)::int FROM properties p
-         WHERE p.seller_id IS NOT NULL
+         WHERE p.user_id = $1
+           AND p.seller_id IS NOT NULL
            AND UPPER(p.state) = UPPER(c.state)
            AND LOWER(COALESCE(p.county, '')) = LOWER(c.county_name)) AS sellers,
       (SELECT COUNT(*)::int FROM buyers b
-         WHERE b.preferred_states @> to_jsonb(ARRAY[UPPER(c.state)])
+         WHERE b.user_id = $1
+           AND (b.preferred_states @> to_jsonb(ARRAY[UPPER(c.state)])
             OR EXISTS (
               SELECT 1 FROM jsonb_array_elements_text(b.preferred_cities) pc
-              JOIN cities ci ON ci.county_id = c.id
+              JOIN cities ci ON ci.county_id = c.id AND ci.user_id = $1
               WHERE LOWER(pc) = LOWER(ci.city_name)
-            )) AS buyers,
+            ))) AS buyers,
       (SELECT COUNT(*)::int FROM investors i
-         WHERE i.preferred_states @> to_jsonb(ARRAY[UPPER(c.state)])
+         WHERE i.user_id = $1
+           AND (i.preferred_states @> to_jsonb(ARRAY[UPPER(c.state)])
             OR EXISTS (
               SELECT 1 FROM jsonb_array_elements_text(i.preferred_cities) pc
-              JOIN cities ci ON ci.county_id = c.id
+              JOIN cities ci ON ci.county_id = c.id AND ci.user_id = $1
               WHERE LOWER(pc) = LOWER(ci.city_name)
-            )) AS investors,
-      (SELECT COUNT(*)::int FROM realtors r WHERE r.county_id = c.id) AS realtors,
-      (SELECT COUNT(*)::int FROM title_companies t WHERE t.county_id = c.id) AS title_companies
+            ))) AS investors,
+      (SELECT COUNT(*)::int FROM realtors r WHERE r.user_id = $1 AND r.county_id = c.id) AS realtors,
+      (SELECT COUNT(*)::int FROM title_companies t WHERE t.user_id = $1 AND t.county_id = c.id) AS title_companies
     FROM counties c
+    WHERE c.user_id = $1
     ORDER BY c.state, c.county_name
-  `);
+  `, [userId || '00000000-0000-0000-0000-000000000000']);
   return rows.map(r => ({
     id: r.id,
     state: r.state,

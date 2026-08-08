@@ -9,36 +9,37 @@ export const exportJobs = new Map();
 /**
  * Server-side exports generator supporting ExcelJS (.xlsx) and json2csv (.csv)
  */
-export async function generateServerExport({ jobId, exportType, format }) {
+export async function generateServerExport({ jobId, exportType, format, userId }) {
   console.log(`[ExportService] Running server-side export for job ${jobId} (${exportType}) in ${format} format...`);
   
   if (jobId) {
     exportJobs.set(jobId, { status: 'processing', progress: 10 });
   }
 
-  // 1. Fetch data based on exportType
+  // 1. Fetch data based on exportType (always scoped to the requesting user)
   let data = [];
   try {
+    const uid = userId || '00000000-0000-0000-0000-000000000000';
     if (exportType === 'properties') {
-      data = await query('SELECT * FROM properties ORDER BY created_at DESC');
+      data = await query('SELECT * FROM properties WHERE user_id = $1 ORDER BY created_at DESC', [uid]);
     } else if (exportType === 'sellers') {
-      data = await query('SELECT * FROM sellers ORDER BY created_at DESC');
+      data = await query('SELECT * FROM sellers WHERE user_id = $1 ORDER BY created_at DESC', [uid]);
     } else if (exportType === 'buyers') {
-      data = await query('SELECT * FROM buyers ORDER BY created_at DESC');
+      data = await query('SELECT * FROM buyers WHERE user_id = $1 ORDER BY created_at DESC', [uid]);
     } else if (exportType === 'investors') {
-      data = await query('SELECT * FROM investors ORDER BY created_at DESC');
+      data = await query('SELECT * FROM investors WHERE user_id = $1 ORDER BY created_at DESC', [uid]);
     } else if (exportType.startsWith('crm-')) {
       const stage = exportType.replace('crm-', '');
-      let sql = 'SELECT * FROM properties';
-      let params = [];
+      let sql = 'SELECT * FROM properties WHERE user_id = $1';
+      let params = [uid];
       if (stage === 'new') {
-        sql += ' WHERE status = $1';
+        sql += ' AND status = $2';
         params.push('new');
       } else if (stage === 'contacted') {
-        sql += ' WHERE status = $1';
+        sql += ' AND status = $2';
         params.push('contacted');
       } else if (stage === 'followup') {
-        sql += ' WHERE follow_up_date IS NOT NULL';
+        sql += ' AND follow_up_date IS NOT NULL';
       }
       sql += ' ORDER BY created_at DESC';
       data = await query(sql, params);
@@ -51,8 +52,9 @@ export async function generateServerExport({ jobId, exportType, format }) {
         LEFT JOIN buyers b ON bm.buyer_id = b.id AND bm.buyer_type = 'buyer'
         LEFT JOIN investors i ON bm.buyer_id = i.id AND bm.buyer_type = 'investor'
         WHERE bm.property_id = $1
+          AND EXISTS (SELECT 1 FROM properties p WHERE p.id = bm.property_id AND p.user_id = $2)
         ORDER BY bm.match_score DESC
-      `, [propId]);
+      `, [propId, uid]);
     }
 
     if (jobId) {

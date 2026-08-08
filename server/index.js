@@ -690,8 +690,8 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
-app.get('/api/data', requireAuth, async (_req, res) => {
-  res.json(await getAllData());
+app.get('/api/data', requireAuth, async (req, res) => {
+  res.json(await getAllData(req.user.id));
 });
 
 app.post('/api/support', async (req, res) => {
@@ -971,7 +971,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 // Use the async Postgres-backed resources from db.js
 function mountResource(path, resource) {
   app.get(`/api/${path}`, requireAuth, async (req, res) => {
-    let list = await resource.list();
+    let list = await resource.list(req.user.id);
     if (path === 'sellers') {
       const {
         ownerName,
@@ -1038,7 +1038,7 @@ function mountResource(path, resource) {
     res.json(list);
   });
   app.post(`/api/${path}`, requireAuth, async (req, res) => {
-    const inserted = await resource.insert(req.body);
+    const inserted = await resource.insert(req.body, req.user.id);
     try {
       await handleResourceNotification(req.user, path, 'added', inserted);
     } catch (err) {
@@ -1050,7 +1050,7 @@ function mountResource(path, resource) {
     const items = Array.isArray(req.body) ? req.body : [];
     const created = [];
     for (const item of items) {
-      created.push(await resource.insert(item));
+      created.push(await resource.insert(item, req.user.id));
     }
     try {
       await handleResourceNotification(req.user, path, 'bulk_imported', created);
@@ -1060,7 +1060,7 @@ function mountResource(path, resource) {
     res.status(201).json(created);
   });
   app.put(`/api/${path}/:id`, requireAuth, async (req, res) => {
-    const updated = await resource.update(req.params.id, req.body);
+    const updated = await resource.update(req.params.id, req.body, req.user.id);
     if (!updated) return res.status(404).json({ error: 'Not found' });
     try {
       await handleResourceNotification(req.user, path, 'updated', updated);
@@ -1070,7 +1070,7 @@ function mountResource(path, resource) {
     res.json(updated);
   });
   app.delete(`/api/${path}/:id`, requireAuth, async (req, res) => {
-    const ok = await resource.remove(req.params.id);
+    const ok = await resource.remove(req.params.id, req.user.id);
     if (!ok) return res.status(404).json({ error: 'Not found' });
     try {
       await handleResourceNotification(req.user, path, 'deleted', { id: req.params.id });
@@ -1095,7 +1095,7 @@ mountResource('title-companies', titleCompanies);
 // Per-county rollups: sellers, buyers, investors, realtors, title companies, properties.
 app.get('/api/geo/area-stats', requireAuth, async (_req, res) => {
   try {
-    res.json(await getAreaStats());
+    res.json(await getAreaStats(req.user.id));
   } catch (err) {
     console.error('[Geo] area-stats error:', err.message);
     res.status(500).json({ error: 'Failed to compute area stats: ' + err.message });
@@ -1103,9 +1103,9 @@ app.get('/api/geo/area-stats', requireAuth, async (_req, res) => {
 });
 
 // County/city tree for dropdowns and area management.
-app.get('/api/geo/areas', requireAuth, async (_req, res) => {
+app.get('/api/geo/areas', requireAuth, async (req, res) => {
   try {
-    const [countyList, cityList] = await Promise.all([counties.list(), cities.list()]);
+    const [countyList, cityList] = await Promise.all([counties.list(req.user.id), cities.list(req.user.id)]);
     const tree = countyList.map(c => ({
       ...c,
       cities: cityList.filter(ci => ci.countyId === c.id),
@@ -1128,7 +1128,7 @@ app.post('/api/settings/trigger-scrapes', requireAuth, async (req, res) => {
     const triggered = [];
     for (const [source, url] of Object.entries(feeds)) {
       if (url && typeof url === 'string') {
-        await addJob('scrape_source', { source, url: url.trim() });
+        await addJob('scrape_source', { source, url: url.trim(), userId: req.user.id });
         triggered.push(source);
       }
     }
@@ -1142,10 +1142,10 @@ app.post('/api/settings/trigger-scrapes', requireAuth, async (req, res) => {
 // ── Server-persisted scrape configuration ──
 
 // GET: current saved scrape config (sources + refresh interval), merged with defaults.
-app.get('/api/settings/scrape-config', requireAuth, async (_req, res) => {
+app.get('/api/settings/scrape-config', requireAuth, async (req, res) => {
   try {
     const { getSetting } = await import('./db.js');
-    const saved = await getSetting('scrape_config', null);
+    const saved = await getSetting(req.user.id, 'scrape_config', null);
     if (!saved || !Array.isArray(saved.sources)) {
       return res.json({ sources: SCRAPE_SOURCES_DEFAULT.map(s => ({ ...s })), refreshInterval: '24h' });
     }
@@ -1183,16 +1183,16 @@ app.post('/api/settings/scrape-config', requireAuth, async (req, res) => {
 
   try {
     const { setSetting } = await import('./db.js');
-    await setSetting('scrape_config', { sources: cleaned, refreshInterval: interval });
+    await setSetting(req.user.id, 'scrape_config', { sources: cleaned, refreshInterval: interval });
 
-    // Rebuild the recurring background schedule from the new config
-    await rescheduleScrapers({ runNow: false });
+    // Rebuild the recurring background schedule from the new config (per user)
+    await rescheduleScrapers({ userId: req.user.id, runNow: false });
 
     // Fire an immediate background scan per active source
     const triggered = [];
     for (const src of cleaned) {
       if (src.active) {
-        await addJob('scrape_source', { source: src.name, url: src.url });
+        await addJob('scrape_source', { source: src.name, url: src.url, userId: req.user.id });
         triggered.push(src.name);
       }
     }
@@ -1213,7 +1213,7 @@ app.post('/api/settings/scrape-config', requireAuth, async (req, res) => {
 app.get('/api/settings/scrape-status', requireAuth, async (req, res) => {
   try {
     const { getScrapeRuns } = await import('./db.js');
-    const runs = await getScrapeRuns(50);
+    const runs = await getScrapeRuns(req.user.id, 50);
     res.json({ runs });
   } catch (err) {
     console.error('[Settings] GET scrape-status error:', err.message);
@@ -1224,7 +1224,7 @@ app.get('/api/settings/scrape-status', requireAuth, async (req, res) => {
 // ==================== AUTOMATED MATCHING & AI ====================
 
 app.post('/api/properties/:id/auto-match', requireAuth, async (req, res) => {
-  const result = await autoMatchProperty(req.params.id);
+  const result = await autoMatchProperty(req.params.id, req.user.id);
   if (!result) return res.status(404).json({ error: 'Property not found' });
 
   // Notify activity
@@ -1257,7 +1257,7 @@ app.post('/api/properties/:id/auto-match', requireAuth, async (req, res) => {
 // Email notifications via Resend
 app.post('/api/properties/:id/notify', requireAuth, async (req, res) => {
   try {
-    const prop = await properties.get(req.params.id);
+    const prop = await properties.get(req.params.id, req.user.id);
     if (!prop) return res.status(404).json({ error: 'Property not found' });
 
     const matches = req.body.matches || prop?.topMatches || [];
@@ -1297,7 +1297,7 @@ app.post('/api/properties/:id/notify', requireAuth, async (req, res) => {
     await properties.update(req.params.id, {
       notes: (prop?.notes || '') + note,
       status: prop?.status === 'matched' ? 'offer_sent' : prop?.status,
-    });
+    }, req.user.id);
 
     // Notify activity
     try {
@@ -1454,7 +1454,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
   }
 
   try {
-    const buffer = await generateServerExport({ exportType: type, format });
+    const buffer = await generateServerExport({ exportType: type, format, userId: req.user.id });
     const filename = `${type}-${new Date().toISOString().slice(0, 10)}.${format}`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -1470,7 +1470,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
 // GET /api/properties/:id/matches — Get buyer matches for a property
 app.get('/api/properties/:id/matches', requireAuth, async (req, res) => {
   try {
-    const prop = await properties.get(req.params.id);
+    const prop = await properties.get(req.params.id, req.user.id);
     if (!prop) return res.status(404).json({ error: 'Property not found' });
     const matches = prop.topMatches || [];
     res.json(matches);
@@ -1482,7 +1482,7 @@ app.get('/api/properties/:id/matches', requireAuth, async (req, res) => {
 // POST /api/matching/run — Trigger full matching pass
 app.post('/api/matching/run', requireAuth, async (req, res) => {
   try {
-    await addJob('run_matching', {});
+    await addJob('run_matching', { userId: req.user.id });
     res.json({ success: true, message: 'Full matching pass queued successfully in background' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1494,22 +1494,22 @@ app.get('/api/crm/:tab', requireAuth, async (req, res) => {
   const { tab } = req.params;
   try {
     if (tab === 'new' || tab === 'new-leads') {
-      const list = await properties.list();
+      const list = await properties.list(req.user.id);
       res.json(list.filter(p => p.status === 'new'));
     } else if (tab === 'contacted') {
-      const list = await properties.list();
+      const list = await properties.list(req.user.id);
       res.json(list.filter(p => p.status === 'contacted'));
     } else if (tab === 'followup' || tab === 'follow-up') {
-      const list = await properties.list();
+      const list = await properties.list(req.user.id);
       res.json(list.filter(p => p.followUpDate));
     } else if (tab === 'sellers') {
-      const list = await sellers.list();
+      const list = await sellers.list(req.user.id);
       res.json(list);
     } else if (tab === 'buyers') {
-      const list = await buyers.list();
+      const list = await buyers.list(req.user.id);
       res.json(list);
     } else if (tab === 'investors') {
-      const list = await investors.list();
+      const list = await investors.list(req.user.id);
       res.json(list);
     } else {
       res.status(400).json({ error: `Unknown CRM tab: ${tab}` });
@@ -1534,7 +1534,7 @@ app.post('/api/export', requireAuth, async (req, res) => {
     const jobId = randomUUID();
     exportJobs.set(jobId, { status: 'waiting', progress: 0 });
     
-    await addJob('generate_export', { jobId, exportType: type, format });
+    await addJob('generate_export', { jobId, exportType: type, format, userId: req.user.id });
     
     const downloadUrl = `${req.protocol}://${req.get('host')}/api/export/download/${jobId}`;
     res.json({
@@ -1576,10 +1576,10 @@ app.get('/api/search', requireAuth, async (req, res) => {
 
   try {
     const [allProps, allSellers, allBuyers, allInvestors] = await Promise.all([
-      properties.list(),
-      sellers.list(),
-      buyers.list(),
-      investors.list()
+      properties.list(req.user.id),
+      sellers.list(req.user.id),
+      buyers.list(req.user.id),
+      investors.list(req.user.id)
     ]);
 
     const matchedProps = allProps.filter(p =>
@@ -1635,17 +1635,17 @@ initDb()
 
     registerJobProcessor('run_matching', async (data) => {
       const { reRunMatchingForAllProperties } = await import('./db.js');
-      await reRunMatchingForAllProperties();
+      await reRunMatchingForAllProperties(data?.userId);
     });
 
     registerJobProcessor('ai_extract_buybox', async (data) => {
-      const { text, url, entityId, entityType } = data || {};
+      const { text, url, entityId, entityType, userId } = data || {};
       const result = await extractBuyBox(text || url, !!url);
       const { buyers, investors } = await import('./db.js');
       if (entityType === 'buyer' && entityId) {
-        await buyers.update(entityId, { buyBox: result });
+        await buyers.update(entityId, { buyBox: result }, userId);
       } else if (entityType === 'investor' && entityId) {
-        await investors.update(entityId, { buyBox: result });
+        await investors.update(entityId, { buyBox: result }, userId);
       }
     });
 

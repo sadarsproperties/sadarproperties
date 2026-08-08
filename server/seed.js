@@ -9,7 +9,25 @@ function daysAgo(days) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
-export async function seedDatabase({ force = false } = {}) {
+export async function seedDatabase({ force = false, userId = null } = {}) {
+  // Multi-tenant: seed data must belong to a real user. Resolve one explicitly
+  // (SEED_USER_EMAIL) or fall back to the first registered user.
+  const { listUsers } = await import('./db.js');
+  let targetUserId = userId;
+  if (!targetUserId) {
+    const users = await listUsers();
+    const email = process.env.SEED_USER_EMAIL;
+    const match = email ? users.find(u => u.email.toLowerCase() === email.toLowerCase()) : null;
+    targetUserId = (match || users[0])?.id;
+  }
+  if (!targetUserId) {
+    throw new Error('seedDatabase: no user available to seed into (create a user first or set SEED_USER_EMAIL)');
+  }
+  const S = (p) => sellers.insert(p, targetUserId);
+  const B = (p) => buyers.insert(p, targetUserId);
+  const I = (p) => investors.insert(p, targetUserId);
+  const P = (p) => properties.insert(p, targetUserId);
+
   const counts = await countAll();
   const hasData = Object.values(counts).some((count) => count > 0);
 
@@ -34,7 +52,7 @@ export async function seedDatabase({ force = false } = {}) {
   const prop4Id = randomUUID();
 
   // Sellers
-  await sellers.insert({
+  await S({
     id: seller1Id,
     ownerName: 'James Whitfield',
     phone: '(314) 555-0192',
@@ -54,7 +72,7 @@ export async function seedDatabase({ force = false } = {}) {
     contactNotes: 'Very motivated, inherited property, prefers cash deal.',
   });
 
-  await sellers.insert({
+  await S({
     id: seller2Id,
     ownerName: 'Maria Lopez',
     phone: '(314) 555-0144',
@@ -74,7 +92,7 @@ export async function seedDatabase({ force = false } = {}) {
     contactNotes: 'Prefers text communication.',
   });
 
-  await sellers.insert({
+  await S({
     id: seller3Id,
     ownerName: 'Robert Chen',
     phone: '(816) 555-0188',
@@ -95,7 +113,7 @@ export async function seedDatabase({ force = false } = {}) {
   });
 
   // Buyers
-  await buyers.insert({
+  await B({
     id: randomUUID(),
     fullName: 'Derrick Miles',
     companyName: 'Miles Cash Offers LLC',
@@ -121,7 +139,7 @@ export async function seedDatabase({ force = false } = {}) {
     updatedAt: now,
   });
 
-  await buyers.insert({
+  await B({
     id: randomUUID(),
     fullName: 'Angela Brooks',
     companyName: 'Brooks Flip Group',
@@ -147,7 +165,7 @@ export async function seedDatabase({ force = false } = {}) {
     updatedAt: now,
   });
 
-  await buyers.insert({
+  await B({
     id: randomUUID(),
     fullName: 'Marcus Vance',
     companyName: 'Vance Capital Partners',
@@ -174,7 +192,7 @@ export async function seedDatabase({ force = false } = {}) {
   });
 
   // Investors
-  await investors.insert({
+  await I({
     id: randomUUID(),
     investorName: 'Samuel Ortiz',
     companyName: 'Ortiz Capital Partners',
@@ -191,7 +209,7 @@ export async function seedDatabase({ force = false } = {}) {
     updatedAt: now,
   });
 
-  await investors.insert({
+  await I({
     id: randomUUID(),
     investorName: 'Priya Nair',
     companyName: 'Nair Holdings',
@@ -209,7 +227,7 @@ export async function seedDatabase({ force = false } = {}) {
   });
 
   // Properties
-  await properties.insert({
+  await P({
     id: prop1Id,
     address: '1427 N Grand Blvd',
     city: 'St. Louis',
@@ -228,7 +246,7 @@ export async function seedDatabase({ force = false } = {}) {
     updatedAt: now,
   });
 
-  await properties.insert({
+  await P({
     id: prop2Id,
     address: '3908 E 39th St',
     city: 'Kansas City',
@@ -247,7 +265,7 @@ export async function seedDatabase({ force = false } = {}) {
     updatedAt: now,
   });
 
-  await properties.insert({
+  await P({
     id: prop3Id,
     address: '118 W Lexington Ave',
     city: 'Independence',
@@ -266,7 +284,7 @@ export async function seedDatabase({ force = false } = {}) {
     updatedAt: now,
   });
 
-  await properties.insert({
+  await P({
     id: prop4Id,
     address: '5512 Natural Bridge Ave',
     city: 'St. Louis',
@@ -286,9 +304,9 @@ export async function seedDatabase({ force = false } = {}) {
   });
 
   // Link back properties to sellers (avoiding circular foreign key insert constraints)
-  await sellers.update(seller1Id, { propertyId: prop1Id });
-  await sellers.update(seller2Id, { propertyId: prop2Id });
-  await sellers.update(seller3Id, { propertyId: prop3Id });
+  await sellers.update(seller1Id, { propertyId: prop1Id }, targetUserId);
+  await sellers.update(seller2Id, { propertyId: prop2Id }, targetUserId);
+  await sellers.update(seller3Id, { propertyId: prop3Id }, targetUserId);
 
   return { seeded: true, message: 'Sample wholesalers data loaded.' };
 }

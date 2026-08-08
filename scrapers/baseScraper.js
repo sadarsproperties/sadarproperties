@@ -118,11 +118,11 @@ export class BaseScraper {
 
       if (existing && existing.length > 0) {
         console.log(`[BaseScraper - ${this.sourceName}] Duplicate detected for "${normalizedItem.address}". Updating existing record.`);
-        const updated = await properties.update(existing[0].id, normalizedItem);
+        const updated = await properties.update(existing[0].id, normalizedItem, this.userId);
         return updated;
       } else {
         console.log(`[BaseScraper - ${this.sourceName}] Inserting new record for "${normalizedItem.address}".`);
-        const inserted = await properties.insert(normalizedItem);
+        const inserted = await properties.insert(normalizedItem, this.userId);
         return inserted;
       }
     } catch (err) {
