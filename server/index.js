@@ -1147,7 +1147,7 @@ app.get('/api/settings/scrape-config', requireAuth, async (req, res) => {
     const { getSetting } = await import('./db.js');
     const saved = await getSetting(req.user.id, 'scrape_config', null);
     if (!saved || !Array.isArray(saved.sources)) {
-      return res.json({ sources: SCRAPE_SOURCES_DEFAULT.map(s => ({ ...s })), refreshInterval: '24h' });
+      return res.json({ sources: SCRAPE_SOURCES_DEFAULT.map(s => ({ ...s })), refreshInterval: '24h', saved: false });
     }
     const sources = SCRAPE_SOURCES_DEFAULT.map(def => {
       const found = saved.sources.find(s => s && s.name === def.name);
@@ -1155,7 +1155,7 @@ app.get('/api/settings/scrape-config', requireAuth, async (req, res) => {
         ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' ? found.url : '' }
         : { ...def };
     });
-    res.json({ sources, refreshInterval: REFRESH_INTERVALS_MS[saved.refreshInterval] ? saved.refreshInterval : '24h' });
+    res.json({ sources, refreshInterval: REFRESH_INTERVALS_MS[saved.refreshInterval] ? saved.refreshInterval : '24h', saved: true });
   } catch (err) {
     console.error('[Settings] GET scrape-config error:', err.message);
     res.status(500).json({ error: 'Failed to load settings: ' + err.message });

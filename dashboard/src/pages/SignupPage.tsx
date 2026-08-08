@@ -22,7 +22,8 @@ export default function SignupPage() {
     }
     try {
       await signup(name.trim(), email.trim(), password)
-      navigate('/dashboard')
+      // Lead to Settings first so new users tick the sources they want fetched
+      navigate('/settings?setup=1')
     } catch (err: any) {
       setLocalError(err.message || 'Signup failed')
     }

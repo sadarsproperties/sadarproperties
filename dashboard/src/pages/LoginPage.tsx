@@ -17,7 +17,8 @@ export default function LoginPage() {
     setLocalError('')
     try {
       await login(email.trim(), password)
-      navigate('/dashboard')
+      // Lead to Settings first so users confirm which data sources to fetch
+      navigate('/settings?setup=1')
     } catch (err: any) {
       setLocalError(err.message || 'Login failed')
     }

@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import DashboardPage from './pages/DashboardPage'
 import PropertiesPage from './pages/PropertiesPage'
+import ComparePage from './pages/ComparePage'
 import BuyersListPage from './pages/BuyersListPage'
 import DealAnalyzerPage from './pages/DealAnalyzerPage'
 import AssignmentClosePage from './pages/AssignmentClosePage'
@@ -47,6 +48,7 @@ export default function App() {
 
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/properties" element={<ProtectedRoute><PropertiesPage /></ProtectedRoute>} />
+        <Route path="/compare" element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />
         <Route path="/buyers" element={<ProtectedRoute><BuyersListPage /></ProtectedRoute>} />
         <Route path="/deal-analyzer" element={<ProtectedRoute><DealAnalyzerPage /></ProtectedRoute>} />
         <Route path="/assignment-close" element={<ProtectedRoute><AssignmentClosePage /></ProtectedRoute>} />

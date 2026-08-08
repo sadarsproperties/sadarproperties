@@ -44,10 +44,21 @@ export async function scrapeBatchLeads(context, targetUrl) {
         console.warn('[BatchLeads Scraper] Automated login failed. Please complete login manually.');
       }
     } else {
-      console.log('[BatchLeads Scraper] Please log in manually inside the browser.');
+      console.log('[BatchLeads Scraper] No BATCHLEADS_EMAIL/PASSWORD set. Please log in manually.');
     }
 
-    // Wait for manual login to finish
+    // Fast-fail in headless mode: no human is available to complete the login,
+    // so waiting for manual verification is just a wasted 3 minutes.
+    const stillOnLogin =
+      page.url().includes('auth.batchleads.io') ||
+      (await page.evaluate(() => !!document.querySelector('input[type="password"]')).catch(() => true));
+    if (process.env.SCRAPER_HEADLESS === 'true' && stillOnLogin) {
+      throw new Error(
+        'BatchLeads login failed in headless mode (wrong credentials or CAPTCHA). Check BATCHLEADS_EMAIL/PASSWORD in .env, or run once in headed mode to save session cookies.'
+      );
+    }
+
+    // Wait for manual login to finish (headed mode only)
     console.log('[BatchLeads Scraper] Waiting for user to complete login (up to 3 minutes)...');
     await page.waitForURL('**/app.batchleads.io/**', { timeout: 180000 }).catch(() => {
       console.warn('[BatchLeads Scraper] Login timeout. Proceeding...');

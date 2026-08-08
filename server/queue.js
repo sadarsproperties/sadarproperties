@@ -12,6 +12,10 @@ export const SCRAPE_SOURCES_DEFAULT = [
   { name: 'FSBO', active: false, url: '' },
   { name: 'Auction', active: false, url: '' },
   { name: 'Subject To', active: false, url: '' },
+  { name: 'Redfin', active: false, url: '' },
+  { name: 'Realtor.com', active: false, url: '' },
+  { name: 'County Records', active: false, url: '' },
+  { name: 'HUD', active: false, url: '' },
   { name: 'Realtors', active: false, url: '' },
   { name: 'Title Companies', active: false, url: '' },
 ];

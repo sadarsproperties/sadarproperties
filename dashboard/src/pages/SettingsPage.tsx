@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE } from '../api/client';
 import { getAuthToken } from '../api/token';
 import AppLayout from '../components/AppLayout';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // setup=1 → user just logged in / signed up; they confirm their data sources
+  // here before being let into the dashboard.
+  const isSetup = params.get('setup') === '1';
+  const [configSaved, setConfigSaved] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [activeSection, setActiveSection] = useState<'sources' | 'integrations' | 'prefs'>('sources');
 
   // Data Sources Preferences
@@ -27,6 +35,14 @@ export default function SettingsPage() {
   const [realtorsUrl, setRealtorsUrl] = useState('');
   const [titleCompaniesActive, setTitleCompaniesActive] = useState(false);
   const [titleCompaniesUrl, setTitleCompaniesUrl] = useState('');
+  const [redfinActive, setRedfinActive] = useState(false);
+  const [redfinUrl, setRedfinUrl] = useState('');
+  const [realtorComActive, setRealtorComActive] = useState(false);
+  const [realtorComUrl, setRealtorComUrl] = useState('');
+  const [countyRecordsActive, setCountyRecordsActive] = useState(false);
+  const [countyRecordsUrl, setCountyRecordsUrl] = useState('');
+  const [hudActive, setHudActive] = useState(false);
+  const [hudUrl, setHudUrl] = useState('');
   const [refreshInterval, setRefreshInterval] = useState('24h');
 
   // Save status message (shown in the success/error banner)
@@ -71,6 +87,14 @@ export default function SettingsPage() {
     setRealtorsUrl(localStorage.getItem('pref_realtors_url') || '');
     setTitleCompaniesActive(localStorage.getItem('pref_titlecompanies_active') === 'true');
     setTitleCompaniesUrl(localStorage.getItem('pref_titlecompanies_url') || '');
+    setRedfinActive(localStorage.getItem('pref_redfin_active') === 'true');
+    setRedfinUrl(localStorage.getItem('pref_redfin_url') || '');
+    setRealtorComActive(localStorage.getItem('pref_realtorcom_active') === 'true');
+    setRealtorComUrl(localStorage.getItem('pref_realtorcom_url') || '');
+    setCountyRecordsActive(localStorage.getItem('pref_countyrecords_active') === 'true');
+    setCountyRecordsUrl(localStorage.getItem('pref_countyrecords_url') || '');
+    setHudActive(localStorage.getItem('pref_hud_active') === 'true');
+    setHudUrl(localStorage.getItem('pref_hud_url') || '');
     setRefreshInterval(localStorage.getItem('pref_refresh_interval') || '24h');
 
     setAiMode(localStorage.getItem('pref_ai_mode') || 'standard');
@@ -140,13 +164,27 @@ export default function SettingsPage() {
       apply(src('Subject To'), setSubjectToActive, setSubjectToUrl);
       apply(src('Realtors'), setRealtorsActive, setRealtorsUrl);
       apply(src('Title Companies'), setTitleCompaniesActive, setTitleCompaniesUrl);
+      apply(src('Redfin'), setRedfinActive, setRedfinUrl);
+      apply(src('Realtor.com'), setRealtorComActive, setRealtorComUrl);
+      apply(src('County Records'), setCountyRecordsActive, setCountyRecordsUrl);
+      apply(src('HUD'), setHudActive, setHudUrl);
       if (data.refreshInterval) setRefreshInterval(data.refreshInterval);
+      setConfigSaved(!!data.saved);
     } catch {
       // Server unavailable → keep the localStorage defaults already loaded
     } finally {
       setLoadingConfig(false);
+      setConfigLoaded(true);
     }
   }
+
+  // First-run setup: after login/signup, users who already configured their
+  // sources skip straight to the dashboard; the rest stay here to tick sources.
+  useEffect(() => {
+    if (isSetup && configLoaded && configSaved) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isSetup, configLoaded, configSaved, navigate]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +208,14 @@ export default function SettingsPage() {
     localStorage.setItem('pref_realtors_url', realtorsUrl);
     localStorage.setItem('pref_titlecompanies_active', String(titleCompaniesActive));
     localStorage.setItem('pref_titlecompanies_url', titleCompaniesUrl);
+    localStorage.setItem('pref_redfin_active', String(redfinActive));
+    localStorage.setItem('pref_redfin_url', redfinUrl);
+    localStorage.setItem('pref_realtorcom_active', String(realtorComActive));
+    localStorage.setItem('pref_realtorcom_url', realtorComUrl);
+    localStorage.setItem('pref_countyrecords_active', String(countyRecordsActive));
+    localStorage.setItem('pref_countyrecords_url', countyRecordsUrl);
+    localStorage.setItem('pref_hud_active', String(hudActive));
+    localStorage.setItem('pref_hud_url', hudUrl);
     localStorage.setItem('pref_refresh_interval', refreshInterval);
 
     localStorage.setItem('pref_ai_mode', aiMode);
@@ -191,6 +237,10 @@ export default function SettingsPage() {
       { name: 'Subject To', active: subjectToActive, url: subjectToUrl },
       { name: 'Realtors', active: realtorsActive, url: realtorsUrl },
       { name: 'Title Companies', active: titleCompaniesActive, url: titleCompaniesUrl },
+      { name: 'Redfin', active: redfinActive, url: redfinUrl },
+      { name: 'Realtor.com', active: realtorComActive, url: realtorComUrl },
+      { name: 'County Records', active: countyRecordsActive, url: countyRecordsUrl },
+      { name: 'HUD', active: hudActive, url: hudUrl },
     ];
     setTriggerStatus('');
     try {
@@ -206,6 +256,10 @@ export default function SettingsPage() {
       const data = await res.json();
       if (res.ok) {
         setTriggerStatus('✓ ' + (data.message || 'Settings saved and background scans triggered.'));
+        // First-run: after saving, send the user into the dashboard.
+        if (isSetup) {
+          setTimeout(() => navigate('/dashboard', { replace: true }), 900);
+        }
       } else {
         setTriggerStatus('✕ Error: ' + (data.error || 'Failed to save settings.'));
       }
@@ -220,6 +274,21 @@ export default function SettingsPage() {
 
   return (
     <AppLayout title="Settings">
+      {isSetup && configLoaded && !configSaved && (
+        <div className="mb-6 rounded-3xl border border-[#F5A623]/40 bg-[#F5A623]/10 p-6">
+          <h2 className="text-lg font-extrabold text-[#1A3C34]">Welcome! Let's set up your data pipeline</h2>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+            Tick the <strong>data sources</strong> you want to fetch, then hit{' '}
+            <strong>Save Configuration</strong>. Your picks run automatically every 24 hours in the
+            background — even when you're not in the app — and populate your Properties, Realtors,
+            and Title Companies pages. You can change this anytime in Settings.
+          </p>
+          <p className="mt-2 text-xs font-semibold text-[#B87A0A]">
+            Tip: Craigslist, County Records and HUD are free and work right now. Zillow / Redfin /
+            Realtor.com / FSBO / Auction are blocked from server IPs unless you add a proxy.
+          </p>
+        </div>
+      )}
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Left Navigation Menu */}
         <div className="w-full lg:w-64 shrink-0">
@@ -548,6 +617,114 @@ export default function SettingsPage() {
                           value={titleCompaniesUrl}
                           onChange={e => setTitleCompaniesUrl(e.target.value)}
                           placeholder="e.g., https://www.yellowpages.com/search?q=title+companies"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Redfin Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan and import for-sale listings from Redfin (works from a clean IP / proxy).</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={redfinActive}
+                        onChange={e => setRedfinActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
+                    </div>
+                    {redfinActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Redfin Search</label>
+                        <input
+                          type="text"
+                          value={redfinUrl}
+                          onChange={e => setRedfinUrl(e.target.value)}
+                          placeholder="e.g., https://www.redfin.com/oh/cleveland"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Realtor.com Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan and import for-sale listings from Realtor.com (works from a clean IP / proxy).</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={realtorComActive}
+                        onChange={e => setRealtorComActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
+                    </div>
+                    {realtorComActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Realtor.com Search</label>
+                        <input
+                          type="text"
+                          value={realtorComUrl}
+                          onChange={e => setRealtorComUrl(e.target.value)}
+                          placeholder="e.g., https://www.realtor.com/realestateandhomes-search/Cleveland_OH"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">County Records Feed</p>
+                        <p className="text-[10px] text-slate-450">Free public tax/deed records — paste any county property-search results URL (owner, address, assessed value).</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={countyRecordsActive}
+                        onChange={e => setCountyRecordsActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
+                    </div>
+                    {countyRecordsActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">County Property Search URL</label>
+                        <input
+                          type="text"
+                          value={countyRecordsUrl}
+                          onChange={e => setCountyRecordsUrl(e.target.value)}
+                          placeholder="e.g., https://property.cuyahogacounty.us/ (results page)"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">HUD Homes Feed</p>
+                        <p className="text-[10px] text-slate-450">Free government-owned REO homes (HUD Home Store) — no login, works from your VPS.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={hudActive}
+                        onChange={e => setHudActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
+                    </div>
+                    {hudActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">HUD Search URL (optional)</label>
+                        <input
+                          type="text"
+                          value={hudUrl}
+                          onChange={e => setHudUrl(e.target.value)}
+                          placeholder="e.g., https://www.hudhomestore.gov/searchresult (leave blank for OH)"
                           className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
                         />
                       </div>

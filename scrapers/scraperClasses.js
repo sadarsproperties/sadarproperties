@@ -9,7 +9,11 @@ import { scrapeAuction } from './auction.js';
 import { scrapeSubjectTo } from './subjectto.js';
 import { scrapeRealtors } from './realtorsDirectory.js';
 import { scrapeTitleCompanies } from './titleDirectory.js';
-import { FSBOAdapter, AuctionAdapter, SubjectToAdapter } from '../server/sourceAdapters.js';
+import { scrapeRedfin } from './redfin.js';
+import { scrapeRealtor } from './realtor.js';
+import { scrapeCountyRecords } from './countyRecords.js';
+import { scrapeHUD, HUDAdapter } from './hud.js';
+import { FSBOAdapter, AuctionAdapter, SubjectToAdapter, CountyRecordsAdapter } from '../server/sourceAdapters.js';
 
 export class ZillowScraper extends BaseScraper {
   constructor() {
@@ -37,7 +41,7 @@ export class CraigslistScraper extends BaseScraper {
   async scrape(filters = {}) {
     await this.connect();
     try {
-      const url = filters.url || 'https://newyork.craigslist.org/search/apt';
+      const url = filters.url || 'https://cleveland.craigslist.org/search/hhh';
       return await scrapeCraigslist(this.context, url);
     } finally {
       await this.disconnect();
@@ -54,7 +58,7 @@ export class FacebookScraper extends BaseScraper {
   async scrape(filters = {}) {
     await this.connect();
     try {
-      const url = filters.url || 'https://www.facebook.com/marketplace/nyc/propertyrentals';
+      const url = filters.url || 'https://www.facebook.com/marketplace/';
       return await scrapeFacebook(this.context, url);
     } finally {
       await this.disconnect();
@@ -71,7 +75,7 @@ export class PropStreamScraper extends BaseScraper {
   async scrape(filters = {}) {
     await this.connect();
     try {
-      const url = filters.url || 'https://www.propstream.com/listings';
+      const url = filters.url || 'https://app.propstream.com/';
       return await scrapePropStream(this.context, url);
     } finally {
       await this.disconnect();
@@ -88,7 +92,7 @@ export class BatchLeadsScraper extends BaseScraper {
   async scrape(filters = {}) {
     await this.connect();
     try {
-      const url = filters.url || 'https://www.batchleads.io/properties';
+      const url = filters.url || 'https://app.batchleads.io/';
       return await scrapeBatchLeads(this.context, url);
     } finally {
       await this.disconnect();
@@ -159,7 +163,7 @@ export class SubjectToScraper extends BaseScraper {
     await this.connect();
     let rawItems = [];
     try {
-      rawItems = await scrapeSubjectTo(this.context, filters.url || '');
+      rawItems = await scrapeSubjectTo(this.context, filters.url || 'https://www.subjectto.com/listings');
     } finally {
       await this.disconnect();
     }
@@ -264,7 +268,7 @@ export class RealtorDirectoryScraper extends DirectoryScraper {
     await this.connect();
     let rawItems = [];
     try {
-      rawItems = await scrapeRealtors(this.context, filters.url || '');
+      rawItems = await scrapeRealtors(this.context, filters.url || 'https://www.realtor.com/realtor-directory/');
     } finally {
       await this.disconnect();
     }
@@ -281,10 +285,81 @@ export class TitleDirectoryScraper extends DirectoryScraper {
     await this.connect();
     let rawItems = [];
     try {
-      rawItems = await scrapeTitleCompanies(this.context, filters.url || '');
+      rawItems = await scrapeTitleCompanies(this.context, filters.url || 'https://www.yellowpages.com/search?q=title+companies');
     } finally {
       await this.disconnect();
     }
     return rawItems;
+  }
+}
+
+export class RedfinScraper extends BaseScraper {
+  constructor() {
+    super('Redfin');
+    this.rateLimitDelay = 2000;
+  }
+
+  async scrape(filters = {}) {
+    await this.connect();
+    try {
+      const url = filters.url || 'https://www.redfin.com/oh/cleveland';
+      return await scrapeRedfin(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
+  }
+}
+
+export class RealtorScraper extends BaseScraper {
+  constructor() {
+    super('Realtor.com');
+    this.rateLimitDelay = 2000;
+  }
+
+  async scrape(filters = {}) {
+    await this.connect();
+    try {
+      const url = filters.url || 'https://www.realtor.com/realestateandhomes-search/Cleveland_OH';
+      return await scrapeRealtor(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
+  }
+}
+
+export class CountyRecordsScraper extends BaseScraper {
+  constructor() {
+    super('County Records');
+    this.rateLimitDelay = 1500;
+    this.adapter = new CountyRecordsAdapter();
+  }
+
+  async scrape(filters = {}) {
+    await this.connect();
+    try {
+      const url = filters.url || '';
+      return await scrapeCountyRecords(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
+  }
+}
+
+export class HudScraper extends BaseScraper {
+  constructor() {
+    super('HUD');
+    this.rateLimitDelay = 2000;
+    this.adapter = new HUDAdapter();
+  }
+
+  async scrape(filters = {}) {
+    await this.connect();
+    try {
+      const url = filters.url || '';
+      const location = filters.state || filters.location || 'OH';
+      return await scrapeHUD(this.context, url, location);
+    } finally {
+      await this.disconnect();
+    }
   }
 }

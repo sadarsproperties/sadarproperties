@@ -652,6 +652,14 @@ export async function runScrapeTask(data) {
     scraper = new scraperClasses.AuctionScraper();
   } else if (lowerSource === 'subject to' || lowerSource === 'subject-to' || lowerSource === 'subjectto') {
     scraper = new scraperClasses.SubjectToScraper();
+  } else if (lowerSource === 'redfin') {
+    scraper = new scraperClasses.RedfinScraper();
+  } else if (lowerSource === 'county records' || lowerSource === 'county' || lowerSource === 'countyrecords' || lowerSource === 'county-records') {
+    scraper = new scraperClasses.CountyRecordsScraper();
+  } else if (lowerSource === 'hud' || lowerSource === 'hud homes' || lowerSource === 'hudhomestore' || lowerSource === 'hud-home-store') {
+    scraper = new scraperClasses.HudScraper();
+  } else if (lowerSource === 'realtor.com' || lowerSource === 'realtor listings' || lowerSource === 'realtor-com') {
+    scraper = new scraperClasses.RealtorScraper();
   } else if (lowerSource === 'realtors' || lowerSource === 'realtor directory' || lowerSource === 'realtor') {
     scraper = new scraperClasses.RealtorDirectoryScraper();
   } else if (lowerSource === 'title companies' || lowerSource === 'title directory' || lowerSource === 'title' || lowerSource === 'title-companies') {

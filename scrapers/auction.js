@@ -18,7 +18,17 @@ export async function scrapeAuction(context, targetUrl) {
     });
 
     console.log(`[Auction Scraper] Navigating to: ${url}`);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(4000);
+
+    // Detect anti-bot blocks so the readout reports WHY instead of "0 saved"
+    const title = await page.title();
+    const bodyText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
+    if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(title + ' ' + bodyText)) {
+      throw new Error(
+        'Auction.com blocked this session (bot protection). Use a clean/residential IP (set PROXY_SERVER) or a different source.'
+      );
+    }
 
     await page.waitForSelector('[class*="asset"], [class*="property-card"], [class*="listing"], article, a[href*="/details/"]', { timeout: 15000 }).catch(() => {
       console.log('[Auction Scraper] Listing selector not found. Parsing body directly.');
