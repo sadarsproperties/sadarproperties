@@ -1115,6 +1115,8 @@ app.get('/api/geo/areas', requireAuth, async (_req, res) => {
     console.error('[Geo] areas error:', err.message);
     res.status(500).json({ error: 'Failed to load areas: ' + err.message });
   }
+});
+
 // Trigger active data feed scans immediately in the background queue.
 app.post('/api/settings/trigger-scrapes', requireAuth, async (req, res) => {
   const { feeds } = req.body;
