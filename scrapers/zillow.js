@@ -1,11 +1,46 @@
 /**
  * Zillow Scraper Module
- * Note: Zillow utilizes aggressive anti-bot protection (PerimeterX/PX).
- * This script runs in headed mode by default to let the user solve CAPTCHAs if they trigger.
+ * Two strategies:
+ *  1. JSON API (async-create-search-page-state) via plain fetch — fast, no browser.
+ *     Only works from clean (residential/mobile) IPs. Zillow's PerimeterX blocks
+ *     datacenter IPs outright (403 + "Press & Hold" wall) on HTML *and* all APIs.
+ *  2. Playwright browser fallback — runs headed by default so a human can solve
+ *     the "Press & Hold" challenge if it triggers.
  */
+
+import { CONFIG } from '../config.js';
+import { ProxyAgent } from 'undici';
 
 const PROPERTY_CARD_SELECTOR = '[data-test="property-card"], article[data-test="property-card"]';
 const LISTING_WAIT_TIMEOUT = 120000;
+const SEARCH_STATE_ENDPOINT = 'https://www.zillow.com/async-create-search-page-state';
+const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/search';
+
+// Simple in-process geocode cache (Nominatim is rate-limited to ~1 req/s)
+const geoCache = new Map();
+
+// Lazily-built undici proxy dispatcher from CONFIG.proxy (PROXY_SERVER env vars).
+let proxyDispatcher = null;
+function getProxyDispatcher() {
+  const p = CONFIG.proxy;
+  if (!p || !p.server) return undefined;
+  if (proxyDispatcher) return proxyDispatcher;
+  try {
+    let url = p.server.startsWith('http') ? p.server : `http://${p.server}`;
+    if (p.username && p.password) {
+      const parsed = new URL(url);
+      parsed.username = encodeURIComponent(p.username);
+      parsed.password = encodeURIComponent(p.password);
+      url = parsed.toString();
+    }
+    proxyDispatcher = new ProxyAgent(url);
+    console.log('[Zillow Scraper] API requests will route through proxy:', p.server);
+  } catch (err) {
+    console.warn(`[Zillow Scraper] Could not build proxy dispatcher: ${err.message}`);
+    proxyDispatcher = null;
+  }
+  return proxyDispatcher || undefined;
+}
 
 function normalizeListing(listing) {
   const info = listing?.hdpData?.homeInfo || {};
@@ -33,7 +68,122 @@ function normalizeListing(listing) {
   };
 }
 
-async function isBlocked(page) {
+/**
+ * Derive a human-readable search term (city/state or zip) from a Zillow URL
+ * like /homes/for_sale/Cleveland-OH/ , /homes/for_sale/44113/ or /homes/for_sale/17402_rid/.
+ */
+function searchTermFromUrl(targetUrl) {
+  const m = String(targetUrl || '').match(/\/for_sale\/([^/?]+)/i);
+  if (!m) return '';
+  const seg = m[1].replace(/_(rb|rid|d|zid|b|f|k)$/i, '').replace(/-/g, ' ').trim();
+  if (/^\d{5}$/.test(seg)) return seg; // zip code
+  return seg; // e.g. "cleveland oh"
+}
+
+async function geocodeLocation(searchTerm) {
+  const key = searchTerm.toLowerCase().trim();
+  if (!key) return null;
+  if (geoCache.has(key)) return geoCache.get(key);
+  try {
+    const url = `${NOMINATIM_ENDPOINT}?q=${encodeURIComponent(key)}&format=json&limit=1`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'SadarProperties/1.0 (property data tool)' },
+      dispatcher: getProxyDispatcher(),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const places = await res.json();
+    const place = places && places[0];
+    if (!place || !place.boundingbox) return null;
+    const result = { term: place.display_name, bounds: place.boundingbox };
+    geoCache.set(key, result);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+async function buildSearchQueryState(targetUrl) {
+  const regionIdMatch = String(targetUrl || '').match(/(\d+)_rid/i);
+  const term = searchTermFromUrl(targetUrl);
+  const state = {
+    isMapVisible: true,
+    filterState: {
+      fsba: { value: false },
+      fsbo: { value: false },
+      nc: { value: false },
+      cmsn: { value: false },
+      auc: { value: false },
+      fore: { value: false },
+      rs: { value: true },
+      ah: { value: true },
+    },
+    isListVisible: true,
+    mapZoom: 10,
+    pagination: {},
+    usersSearchTerm: term || 'United States',
+  };
+
+  if (regionIdMatch) {
+    state.regionSelection = [{ regionId: Number(regionIdMatch[1]), regionType: 6 }];
+  } else if (term) {
+    const geo = await geocodeLocation(term);
+    if (geo) {
+      const [south, north, west, east] = geo.bounds.map(Number);
+      state.mapBounds = { west, east, south, north };
+    }
+  }
+  return state;
+}
+
+/**
+ * Strategy 1 — Zillow's internal search-state JSON API via plain fetch (no browser).
+ * Returns { blocked: true } when PerimeterX rejects the request, { listings: [] }
+ * when reachable but empty, or { listings } with normalized records.
+ */
+async function fetchSearchState(targetUrl) {
+  const searchQueryState = await buildSearchQueryState(targetUrl);
+  const body = JSON.stringify({
+    searchQueryState,
+    wants: { cat1: ['listResults', 'mapResults'], cat2: ['total'] },
+    requestId: 1,
+  });
+
+  const headers = {
+    'User-Agent': CONFIG.userAgent,
+    'Accept': 'application/json, text/plain, */*',
+    'Content-Type': 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'sec-ch-ua': '"Not A;Brand";v="99", "Chromium";v="122"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'Origin': 'https://www.zillow.com',
+    'Referer': targetUrl,
+  };
+
+  const res = await fetch(SEARCH_STATE_ENDPOINT, {
+    method: 'POST',
+    headers,
+    body,
+    dispatcher: getProxyDispatcher(),
+    signal: AbortSignal.timeout(20000),
+  });
+  const text = await res.text();
+
+  if (res.status === 403 || /px-captcha|Access to this page has been denied|Press & Hold/i.test(text)) {
+    return { blocked: true };
+  }
+
+  try {
+    const payload = JSON.parse(text);
+    const listings = extractListingsFromPayload(payload);
+    return { blocked: false, listings };
+  } catch {
+    return { blocked: false, listings: [] };
+  }
+}
+
+function isBlocked(page) {
   return page.evaluate(() => {
     const bodyText = document.body?.innerText || '';
     const title = (document.title || '').toLowerCase();
@@ -50,8 +200,8 @@ async function isBlocked(page) {
   });
 }
 
-async function waitForListings(page) {
-  await page.waitForSelector(PROPERTY_CARD_SELECTOR, { timeout: LISTING_WAIT_TIMEOUT }).catch(() => {});
+function waitForListings(page) {
+  return page.waitForSelector(PROPERTY_CARD_SELECTOR, { timeout: LISTING_WAIT_TIMEOUT }).catch(() => {});
 }
 
 async function waitForBlockToClear(page) {
@@ -91,7 +241,37 @@ function extractListingsFromPayload(payload) {
   return normalized;
 }
 
+/**
+ * Public entry — API first, browser fallback.
+ */
 export async function scrapeZillow(context, targetUrl) {
+  const url = targetUrl || 'https://www.zillow.com/homes/for_sale/';
+
+  // Strategy 1: JSON API (no browser, fast). Requires a clean IP.
+  try {
+    const apiResult = await fetchSearchState(url);
+    if (apiResult.blocked) {
+      console.warn('[Zillow Scraper] JSON API blocked by PerimeterX (datacenter IP?). Falling back to browser strategy.');
+    } else if (apiResult.listings && apiResult.listings.length > 0) {
+      console.log(`[Zillow Scraper] API strategy found ${apiResult.listings.length} listings (no browser).`);
+      return dedupeListings(apiResult.listings);
+    } else {
+      console.log('[Zillow Scraper] API strategy returned zero listings. Falling back to browser strategy.');
+    }
+  } catch (err) {
+    console.warn(`[Zillow Scraper] API strategy failed: ${err.message}. Falling back to browser strategy.`);
+  }
+
+  // Strategy 2: Playwright browser (existing behavior)
+  return scrapeZillowBrowser(context, url);
+}
+
+/**
+ * Strategy 2 — Playwright browser (existing behavior).
+ * In headed mode a human can solve the "Press & Hold" challenge; in headless
+ * mode the challenge cannot be solved and this throws after the wait window.
+ */
+async function scrapeZillowBrowser(context, targetUrl) {
   const page = await context.newPage();
   const interceptedListings = [];
   let apiBlocked = false;
@@ -152,7 +332,15 @@ export async function scrapeZillow(context, targetUrl) {
 
   if (blocked || apiBlocked) {
     console.warn('[Zillow Scraper] Bot detection triggered!');
-    
+
+    // In headless mode there is no human to solve the challenge — fail fast
+    // instead of hanging for the 2-minute manual-verification window.
+    if (process.env.SCRAPER_HEADLESS === 'true') {
+      throw new Error(
+        'Zillow blocked this session (PerimeterX "Press & Hold"). Headless mode cannot solve it — use a clean/residential IP (set PROXY_SERVER) or run from an approved network.'
+      );
+    }
+
     // If blocked via API response (403), load the main homepage to force the interactive CAPTCHA page to load
     if (apiBlocked && !(await isBlocked(page))) {
       console.log('[Zillow Scraper] API block detected. Redirecting browser to Zillow homepage to force manual verification challenge...');

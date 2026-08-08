@@ -88,6 +88,14 @@ export async function failScrapeRun(id, error = '') {
 }
 
 export async function getScrapeRuns(limit = 50) {
+  // Recover runs stuck as 'running' by a crash/hang (e.g. before job timeouts
+  // existed) — mark them failed so the readout never shows a dead job spinning.
+  await query(
+    `UPDATE scrape_runs SET status = 'failed',
+       error = COALESCE(NULLIF(error, ''), 'Stale run — process interrupted or hung before finishing'),
+       finished_at = NOW()
+     WHERE status = 'running' AND started_at < NOW() - INTERVAL '40 minutes'`
+  );
   return query(
     `SELECT * FROM scrape_runs ORDER BY started_at DESC LIMIT $1`,
     [Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)]

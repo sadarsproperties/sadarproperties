@@ -563,8 +563,8 @@ export const registry = new AdapterRegistry();
 /**
  * Build the list of search URLs to scrape for a source.
  * - An explicit URL wins.
- * - Otherwise, for sources with derivable location URLs (Zillow), build one
- *   per saved city/county area so the saved markets feed the scraper.
+ * - Otherwise, for sources with derivable location URLs (Zillow, Craigslist),
+ *   build one per saved city area so the configured markets feed the scraper.
  * - Returns [] when the source has no usable areas → caller falls back to the
  *   scraper's built-in default URL.
  */
@@ -573,19 +573,54 @@ export function buildSearchUrls(source, url, areas = []) {
   if (trimmed) return [trimmed];
 
   const lower = String(source || '').toLowerCase();
-  if (lower !== 'zillow') return [];
-
   const usable = (areas || []).filter(a => a && (a.city || a.countyName) && a.state);
   if (!usable.length) return [];
 
-  const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  const urls = [];
-  for (const a of usable) {
-    const loc = slugify(a.city) || slugify(a.countyName);
-    const st = slugify(a.state).slice(0, 2);
-    if (loc && st) urls.push(`https://www.zillow.com/homes/for_sale/${loc}-${st}_rb/`);
+  if (lower === 'zillow') {
+    const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const urls = [];
+    for (const a of usable) {
+      const loc = slugify(a.city) || slugify(a.countyName);
+      const st = slugify(a.state).slice(0, 2);
+      if (loc && st) urls.push(`https://www.zillow.com/homes/for_sale/${loc}-${st}_rb/`);
+    }
+    return urls;
   }
-  return urls;
+
+  if (lower === 'craigslist') {
+    const urls = [];
+    for (const a of usable) {
+      const slug = craigslistSubdomain(a.city);
+      if (slug) urls.push(`https://${slug}.craigslist.org/search/hhh`);
+    }
+    return urls;
+  }
+
+  return [];
+}
+
+// Craigslist city subdomains don't always match the city name, so map the common
+// ones and fall back to a stripped slug for the rest.
+const CRAIGSLIST_SUBDOMAIN_MAP = {
+  'st louis': 'stlouis',
+  'st. louis': 'stlouis',
+  'kansas city': 'kansascity',
+  'san antonio': 'sanantonio',
+  'san diego': 'sandiego',
+  'los angeles': 'losangeles',
+  'las vegas': 'lasvegas',
+  'new york': 'newyork',
+  'new york city': 'newyork',
+  'new orleans': 'neworleans',
+  'salt lake city': 'saltlakecity',
+  'fort worth': 'dallas', // Craigslist routes Fort Worth through Dallas
+};
+
+function craigslistSubdomain(city) {
+  const key = String(city || '').toLowerCase().trim();
+  if (CRAIGSLIST_SUBDOMAIN_MAP[key]) return CRAIGSLIST_SUBDOMAIN_MAP[key];
+  const slug = key.replace(/[^a-z0-9]/g, '');
+  return slug || null;
 }
 
 export async function runScrapeTask(data) {
@@ -652,14 +687,41 @@ export async function runScrapeTask(data) {
     console.warn(`[runScrapeTask] Could not log scrape run start: ${err.message}`);
   }
 
+  // Hard safety limits so a stuck site can never hold the queue forever:
+  // - SCRAPE_MAX_RUN_MS: whole job aborts after this (default 15 min)
+  // - SCRAPE_MAX_ITEMS: stop saving after this many records (default 300)
+  const MAX_RUN_MS = parseInt(process.env.SCRAPE_MAX_RUN_MS || String(15 * 60 * 1000), 10);
+  const MAX_ITEMS = parseInt(process.env.SCRAPE_MAX_ITEMS || '300', 10);
+  const runMins = Math.round(MAX_RUN_MS / 60000);
+  const runLabel = runMins >= 1 ? `${runMins} min` : `${Math.round(MAX_RUN_MS / 1000)}s`;
+  const timeoutMsg = `Scrape ${source} timed out after ${runLabel} (safety limit)`;
+  let timedOut = false;
+  const timeoutTimer = setTimeout(() => {
+    timedOut = true;
+    scraper.disconnect().catch(() => {}); // force-close the browser to unblock in-flight calls
+  }, MAX_RUN_MS);
+
   try {
     for (const target of targets) {
+      if (timedOut) throw new Error(timeoutMsg);
+
       // 1. Scrape raw items for this target URL
-      const rawItems = await scraper.scrape(target ? { url: target, ...filters } : { ...filters });
+      let rawItems;
+      try {
+        rawItems = await scraper.scrape(target ? { url: target, ...filters } : { ...filters });
+      } catch (err) {
+        if (timedOut) throw new Error(timeoutMsg);
+        throw err;
+      }
       console.log(`[runScrapeTask] Scraped ${rawItems.length} raw items from ${source}${target ? ` (${target})` : ' (default URL)'}`);
 
       // 2. Normalize and save items with rate limiting delay
       for (const item of rawItems) {
+        if (timedOut) throw new Error(timeoutMsg);
+        if (count >= MAX_ITEMS) {
+          console.warn(`[runScrapeTask] Reached ${MAX_ITEMS}-record cap for ${source}; stopping.`);
+          break;
+        }
         // Rate limit delay between requests/processes
         await scraper.delay();
 
@@ -669,18 +731,25 @@ export async function runScrapeTask(data) {
           count++;
         }
       }
+      if (count >= MAX_ITEMS) break;
     }
+
+    if (timedOut) throw new Error(timeoutMsg);
 
     if (runId) {
       const { finishScrapeRun } = await import('./db.js');
       await finishScrapeRun(runId, count).catch(() => {});
     }
   } catch (err) {
+    // Always release the browser so we never leak processes on failure/timeout
+    try { await scraper.disconnect(); } catch { /* ignore */ }
     if (runId) {
       const { failScrapeRun } = await import('./db.js');
       await failScrapeRun(runId, err.message).catch(() => {});
     }
     throw err;
+  } finally {
+    clearTimeout(timeoutTimer);
   }
 
   console.log(`[runScrapeTask] Completed scraping task for ${source}. Saved/updated ${count} records.`);

@@ -19,10 +19,12 @@ export class ZillowScraper extends BaseScraper {
 
   async scrape(filters = {}) {
     await this.connect();
-    const url = filters.url || 'https://www.zillow.com/homes/for_sale/';
-    const rawItems = await scrapeZillow(this.context, url);
-    await this.disconnect();
-    return rawItems;
+    try {
+      const url = filters.url || 'https://www.zillow.com/homes/for_sale/';
+      return await scrapeZillow(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
   }
 }
 
@@ -34,10 +36,12 @@ export class CraigslistScraper extends BaseScraper {
 
   async scrape(filters = {}) {
     await this.connect();
-    const url = filters.url || 'https://newyork.craigslist.org/search/apt';
-    const rawItems = await scrapeCraigslist(this.context, url);
-    await this.disconnect();
-    return rawItems;
+    try {
+      const url = filters.url || 'https://newyork.craigslist.org/search/apt';
+      return await scrapeCraigslist(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
   }
 }
 
@@ -49,10 +53,12 @@ export class FacebookScraper extends BaseScraper {
 
   async scrape(filters = {}) {
     await this.connect();
-    const url = filters.url || 'https://www.facebook.com/marketplace/nyc/propertyrentals';
-    const rawItems = await scrapeFacebook(this.context, url);
-    await this.disconnect();
-    return rawItems;
+    try {
+      const url = filters.url || 'https://www.facebook.com/marketplace/nyc/propertyrentals';
+      return await scrapeFacebook(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
   }
 }
 
@@ -64,10 +70,12 @@ export class PropStreamScraper extends BaseScraper {
 
   async scrape(filters = {}) {
     await this.connect();
-    const url = filters.url || 'https://www.propstream.com/listings';
-    const rawItems = await scrapePropStream(this.context, url);
-    await this.disconnect();
-    return rawItems;
+    try {
+      const url = filters.url || 'https://www.propstream.com/listings';
+      return await scrapePropStream(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
   }
 }
 
@@ -79,10 +87,12 @@ export class BatchLeadsScraper extends BaseScraper {
 
   async scrape(filters = {}) {
     await this.connect();
-    const url = filters.url || 'https://www.batchleads.io/properties';
-    const rawItems = await scrapeBatchLeads(this.context, url);
-    await this.disconnect();
-    return rawItems;
+    try {
+      const url = filters.url || 'https://www.batchleads.io/properties';
+      return await scrapeBatchLeads(this.context, url);
+    } finally {
+      await this.disconnect();
+    }
   }
 }
 
