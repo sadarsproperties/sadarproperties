@@ -1154,7 +1154,7 @@ app.get('/api/settings/scrape-config', requireAuth, async (req, res) => {
     const sources = SCRAPE_SOURCES_DEFAULT.map(def => {
       const found = saved.sources.find(s => s && s.name === def.name);
       return found
-        ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' ? found.url : '' }
+        ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' && found.url.trim() ? found.url : def.url }
         : { ...def };
     });
     res.json({ sources, refreshInterval: REFRESH_INTERVALS_MS[saved.refreshInterval] ? saved.refreshInterval : '24h', saved: true });

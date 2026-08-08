@@ -4,20 +4,21 @@ import { getSetting } from './db.js';
 
 // ── Scrape configuration defaults (mirrors dashboard Settings > Data Sources) ──
 export const SCRAPE_SOURCES_DEFAULT = [
-  { name: 'Zillow', active: true, url: '' },
-  { name: 'Craigslist', active: true, url: '' },
-  { name: 'Facebook', active: false, url: '' },
-  { name: 'PropStream', active: true, url: '' },
-  { name: 'BatchLeads', active: false, url: '' },
-  { name: 'FSBO', active: false, url: '' },
-  { name: 'Auction', active: false, url: '' },
-  { name: 'Subject To', active: false, url: '' },
-  { name: 'Redfin', active: false, url: '' },
-  { name: 'Realtor.com', active: false, url: '' },
+  { name: 'Zillow', active: true, url: 'https://www.zillow.com/homes/for_sale/' },
+  { name: 'Craigslist', active: true, url: 'https://cleveland.craigslist.org/search/hhh' },
+  { name: 'Facebook', active: false, url: 'https://www.facebook.com/marketplace/' },
+  { name: 'PropStream', active: true, url: 'https://app.propstream.com/' },
+  { name: 'BatchLeads', active: false, url: 'https://app.batchleads.io/' },
+  { name: 'FSBO', active: false, url: 'https://www.forsalebyowner.com/search/list' },
+  { name: 'Auction', active: false, url: 'https://www.auction.com/residential/' },
+  { name: 'Subject To', active: false, url: 'https://www.subjectto.com/listings' },
+  { name: 'Redfin', active: false, url: 'https://www.redfin.com/oh/cleveland' },
+  { name: 'Realtor.com', active: false, url: 'https://www.realtor.com/realestateandhomes-search/Cleveland_OH' },
+  // County Records needs a per-county results URL — no universal default
   { name: 'County Records', active: false, url: '' },
-  { name: 'HUD', active: false, url: '' },
-  { name: 'Realtors', active: false, url: '' },
-  { name: 'Title Companies', active: false, url: '' },
+  { name: 'HUD', active: false, url: 'https://www.hudhomestore.gov/searchresult' },
+  { name: 'Realtors', active: false, url: 'https://www.realtor.com/realtor-directory/' },
+  { name: 'Title Companies', active: false, url: 'https://www.yellowpages.com/search?q=title+companies' },
 ];
 
 export const REFRESH_INTERVALS_MS = {
@@ -270,7 +271,7 @@ export async function loadScrapeConfig(userId) {
   }
   const sources = SCRAPE_SOURCES_DEFAULT.map(def => {
     const found = saved.sources.find(s => s && s.name === def.name);
-    return found ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' ? found.url : '' } : { ...def };
+    return found ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' && found.url.trim() ? found.url : def.url } : { ...def };
   });
   const refreshInterval = REFRESH_INTERVALS_MS[saved.refreshInterval] ? saved.refreshInterval : '24h';
   return { sources, refreshInterval };
