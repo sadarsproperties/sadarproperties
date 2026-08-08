@@ -1,10 +1,36 @@
 import { randomUUID } from 'crypto';
 import net from 'net';
+import { getSetting } from './db.js';
+
+// ── Scrape configuration defaults (mirrors dashboard Settings > Data Sources) ──
+export const SCRAPE_SOURCES_DEFAULT = [
+  { name: 'Zillow', active: true, url: '' },
+  { name: 'Craigslist', active: true, url: '' },
+  { name: 'Facebook', active: false, url: '' },
+  { name: 'PropStream', active: true, url: '' },
+  { name: 'BatchLeads', active: false, url: '' },
+  { name: 'FSBO', active: false, url: '' },
+  { name: 'Auction', active: false, url: '' },
+  { name: 'Subject To', active: false, url: '' },
+  { name: 'Realtors', active: false, url: '' },
+  { name: 'Title Companies', active: false, url: '' },
+];
+
+export const REFRESH_INTERVALS_MS = {
+  '12h': 12 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '48h': 48 * 60 * 60 * 1000,
+};
+
+const SCRAPE_SETTINGS_KEY = 'scrape_config';
 
 let QueueClass, WorkerClass;
 let useRedis = false;
 let bullQueue = null;
 let bullWorker = null;
+
+// In-memory scrape timers keyed by source name (used when Redis is unavailable)
+const scrapeTimers = new Map();
 
 // Registry of external job processors
 const externalProcessors = new Map();
@@ -130,7 +156,8 @@ export async function initQueue() {
     console.warn('⚠️ Redis port is not listening. Falling back to robust in-memory Task Queue immediately.');
     useRedis = false;
     setupWorkers();
-    setupCronJobs();
+    setupMaintenanceJobs();
+    await rescheduleScrapers({ runNow: true });
     return;
   }
 
@@ -156,7 +183,8 @@ export async function initQueue() {
   }
 
   setupWorkers();
-  setupCronJobs();
+  setupMaintenanceJobs();
+  await rescheduleScrapers({ runNow: true });
 }
 
 async function setupWorkers() {
@@ -189,44 +217,102 @@ async function setupWorkers() {
   }
 }
 
-async function setupCronJobs() {
-  const dataSources = ['Zillow', 'Craigslist', 'Facebook', 'PropStream', 'BatchLeads', 'FSBO', 'Auction', 'Subject To'];
-
+async function setupMaintenanceJobs() {
   if (useRedis && bullQueue) {
     try {
-      // 1. Daily export cleanup
+      // 1. Daily export cleanup (midnight)
       await bullQueue.add('cleanup_exports', {}, {
-        repeat: { cron: '0 0 * * *' } // Midnight daily
+        repeat: { cron: '0 0 * * *' }
       });
-      // 2. Daily database backup
+      // 2. Daily database backup (1:00 AM)
       await bullQueue.add('backup_db', {}, {
-        repeat: { cron: '0 1 * * *' } // 1:00 AM daily
+        repeat: { cron: '0 1 * * *' }
       });
-      // 3. Daily data source scraping
-      for (const src of dataSources) {
-        await bullQueue.add('scrape_source', { source: src }, {
-          repeat: { cron: '0 2 * * *' } // 2:00 AM daily
-        });
-      }
-      console.log('[Queue] Repeatable cron jobs successfully registered in Redis.');
+      console.log('[Queue] Repeatable maintenance cron jobs registered in Redis.');
     } catch (err) {
-      console.error('[Queue] Failed to register repeatable cron jobs in Redis:', err.message);
+      console.error('[Queue] Failed to register maintenance cron jobs in Redis:', err.message);
     }
   } else {
-    console.log('[Queue] Scheduling in-memory fallback cron runners (24 hour cycles).');
-    
+    console.log('[Queue] Scheduling in-memory maintenance runners (24 hour cycles).');
     // Trigger cleanup and backups on boot
     setTimeout(() => addJob('cleanup_exports', {}), 5000);
     setTimeout(() => addJob('backup_db', {}), 10000);
-
     // Set recurring 24 hour intervals
     setInterval(() => addJob('cleanup_exports', {}), 24 * 60 * 60 * 1000);
     setInterval(() => addJob('backup_db', {}), 24 * 60 * 60 * 1000);
+  }
+}
 
-    // Stagger scraper triggers on boot, then run every 24 hours
-    dataSources.forEach((src, idx) => {
-      setTimeout(() => addJob('scrape_source', { source: src }), 15000 + idx * 5000);
-      setInterval(() => addJob('scrape_source', { source: src }), 24 * 60 * 60 * 1000);
+/**
+ * Load the saved scrape configuration, merged against defaults so new sources
+ * always appear even if the stored config is older.
+ */
+export async function loadScrapeConfig() {
+  const saved = await getSetting(SCRAPE_SETTINGS_KEY, null);
+  if (!saved || !Array.isArray(saved.sources)) {
+    return { sources: SCRAPE_SOURCES_DEFAULT.map(s => ({ ...s })), refreshInterval: '24h' };
+  }
+  const sources = SCRAPE_SOURCES_DEFAULT.map(def => {
+    const found = saved.sources.find(s => s && s.name === def.name);
+    return found ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' ? found.url : '' } : { ...def };
+  });
+  const refreshInterval = REFRESH_INTERVALS_MS[saved.refreshInterval] ? saved.refreshInterval : '24h';
+  return { sources, refreshInterval };
+}
+
+function scrapeJobData(source) {
+  return { source: source.name, url: (source.url || '').trim() };
+}
+
+/**
+ * (Re)build the background scrape schedule from the saved settings.
+ * - Redis mode: repeatable BullMQ jobs keyed by jobId (re-adding replaces).
+ * - In-memory mode: per-source setInterval timers.
+ * When runNow is true, fires an initial staggered run for each active source.
+ */
+export async function rescheduleScrapers({ runNow = false } = {}) {
+  const config = await loadScrapeConfig();
+  const intervalMs = REFRESH_INTERVALS_MS[config.refreshInterval] || REFRESH_INTERVALS_MS['24h'];
+  const active = config.sources.filter(s => s.active);
+
+  if (useRedis && bullQueue) {
+    try {
+      // Remove repeatable jobs for sources that are no longer active
+      const repeatables = await bullQueue.getRepeatableJobs();
+      for (const rj of repeatables) {
+        const srcName = rj.id && rj.id.startsWith('scrape-') ? rj.id.slice('scrape-'.length) : null;
+        if (srcName && !active.some(s => s.name.toLowerCase().replace(/\s+/g, '-') === srcName)) {
+          await bullQueue.removeRepeatableByKey(rj.key);
+        }
+      }
+      for (const src of active) {
+        const jobId = `scrape-${src.name.toLowerCase().replace(/\s+/g, '-')}`;
+        await bullQueue.add('scrape_source', scrapeJobData(src), {
+          jobId,
+          repeat: { every: intervalMs },
+          removeOnComplete: 100,
+          removeOnFail: 100,
+        });
+      }
+      console.log(`[Queue] Scrape schedule updated (Redis): ${active.map(s => s.name).join(', ') || 'none'} every ${config.refreshInterval}.`);
+    } catch (err) {
+      console.error('[Queue] Failed to update Redis scrape schedule:', err.message);
+    }
+  } else {
+    // Clear existing in-memory timers
+    for (const [, timer] of scrapeTimers) clearInterval(timer);
+    scrapeTimers.clear();
+    for (const src of active) {
+      const timer = setInterval(() => addJob('scrape_source', scrapeJobData(src)), intervalMs);
+      scrapeTimers.set(src.name, timer);
+    }
+    console.log(`[Queue] Scrape schedule updated (in-memory): ${active.map(s => s.name).join(', ') || 'none'} every ${config.refreshInterval}.`);
+  }
+
+  // Optional immediate staggered run (boot) so pages populate right away
+  if (runNow) {
+    active.forEach((src, idx) => {
+      setTimeout(() => addJob('scrape_source', scrapeJobData(src)), 15000 + idx * 5000);
     });
   }
 }

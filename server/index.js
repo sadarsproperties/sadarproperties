@@ -43,7 +43,7 @@ import {
 } from './db.js';
 import { sendEmail, buildDealEmailHtml, buildDealEmailText, sendWelcomeEmail, sendActivityNotification } from './resend.js';
 import { CONFIG } from '../config.js';
-import { initQueue, addJob, registerJobProcessor } from './queue.js';
+import { initQueue, addJob, registerJobProcessor, rescheduleScrapers, SCRAPE_SOURCES_DEFAULT, REFRESH_INTERVALS_MS } from './queue.js';
 import { generateServerExport, exportJobs } from './exportService.js';
 
 // Scrapers
@@ -1136,6 +1136,88 @@ app.post('/api/settings/trigger-scrapes', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[Settings] Trigger scrapes error:', err);
     res.status(500).json({ error: 'Failed to trigger scans: ' + err.message });
+  }
+});
+
+// ── Server-persisted scrape configuration ──
+
+// GET: current saved scrape config (sources + refresh interval), merged with defaults.
+app.get('/api/settings/scrape-config', requireAuth, async (_req, res) => {
+  try {
+    const { getSetting } = await import('./db.js');
+    const saved = await getSetting('scrape_config', null);
+    if (!saved || !Array.isArray(saved.sources)) {
+      return res.json({ sources: SCRAPE_SOURCES_DEFAULT.map(s => ({ ...s })), refreshInterval: '24h' });
+    }
+    const sources = SCRAPE_SOURCES_DEFAULT.map(def => {
+      const found = saved.sources.find(s => s && s.name === def.name);
+      return found
+        ? { name: def.name, active: !!found.active, url: typeof found.url === 'string' ? found.url : '' }
+        : { ...def };
+    });
+    res.json({ sources, refreshInterval: REFRESH_INTERVALS_MS[saved.refreshInterval] ? saved.refreshInterval : '24h' });
+  } catch (err) {
+    console.error('[Settings] GET scrape-config error:', err.message);
+    res.status(500).json({ error: 'Failed to load settings: ' + err.message });
+  }
+});
+
+// POST: persist scrape config, reschedule background jobs, and immediately
+// enqueue a background scan for every active source.
+app.post('/api/settings/scrape-config', requireAuth, async (req, res) => {
+  const { sources, refreshInterval } = req.body || {};
+  if (!Array.isArray(sources)) {
+    return res.status(400).json({ error: 'Invalid payload: sources must be an array' });
+  }
+  const interval = REFRESH_INTERVALS_MS[refreshInterval] ? refreshInterval : '24h';
+
+  // Whitelist/coerce source entries against known sources
+  const cleaned = SCRAPE_SOURCES_DEFAULT.map(def => {
+    const found = sources.find(s => s && s.name === def.name);
+    return {
+      name: def.name,
+      active: found ? !!found.active : def.active,
+      url: found && typeof found.url === 'string' ? found.url.trim() : '',
+    };
+  });
+
+  try {
+    const { setSetting } = await import('./db.js');
+    await setSetting('scrape_config', { sources: cleaned, refreshInterval: interval });
+
+    // Rebuild the recurring background schedule from the new config
+    await rescheduleScrapers({ runNow: false });
+
+    // Fire an immediate background scan per active source
+    const triggered = [];
+    for (const src of cleaned) {
+      if (src.active) {
+        await addJob('scrape_source', { source: src.name, url: src.url });
+        triggered.push(src.name);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Settings saved. Background scans triggered immediately for: ${triggered.join(', ') || 'none'} (recurring every ${interval}).`,
+      triggered,
+      refreshInterval: interval,
+    });
+  } catch (err) {
+    console.error('[Settings] POST scrape-config error:', err);
+    res.status(500).json({ error: 'Failed to save settings: ' + err.message });
+  }
+});
+
+// GET: recent background scrape runs (source, URL used, records saved, errors).
+app.get('/api/settings/scrape-status', requireAuth, async (req, res) => {
+  try {
+    const { getScrapeRuns } = await import('./db.js');
+    const runs = await getScrapeRuns(50);
+    res.json({ runs });
+  } catch (err) {
+    console.error('[Settings] GET scrape-status error:', err.message);
+    res.status(500).json({ error: 'Failed to load scrape status: ' + err.message });
   }
 });
 

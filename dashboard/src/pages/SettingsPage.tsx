@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_BASE } from '../api/client';
+import { getAuthToken } from '../api/token';
 import AppLayout from '../components/AppLayout';
 
 export default function SettingsPage() {
@@ -31,6 +32,11 @@ export default function SettingsPage() {
   // Triggering state
   const [triggering, setTriggering] = useState(false);
   const [triggerStatus, setTriggerStatus] = useState('');
+  const [loadingConfig, setLoadingConfig] = useState(true);
+
+  // Recent background scrape runs (status readout)
+  const [runLog, setRunLog] = useState<any[]>([]);
+  const [loadingRuns, setLoadingRuns] = useState(false);
 
   // Integrations Settings
   const [aiMode, setAiMode] = useState('standard');
@@ -74,9 +80,76 @@ export default function SettingsPage() {
     setUserName(localStorage.getItem('profile_name') || "Peter O'Connor");
     setUserEmail(localStorage.getItem('profile_email') || 'peter@sadarproperties.com');
     setTimeZone(localStorage.getItem('profile_timezone') || 'America/New_York');
+
+    loadServerConfig();
+    loadRunLog();
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  // Recent background scrape runs (source, URL used, records saved, errors)
+  async function loadRunLog() {
+    setLoadingRuns(true);
+    try {
+      const res = await fetch(`${API_BASE}/settings/scrape-status`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRunLog(data.runs || []);
+    } catch {
+      setRunLog([]);
+    } finally {
+      setLoadingRuns(false);
+    }
+  }
+
+  function timeAgo(iso?: string) {
+    if (!iso) return '—';
+    const ms = Date.now() - new Date(iso).getTime();
+    if (ms < 60_000) return 'just now';
+    const mins = Math.floor(ms / 60_000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
+
+  // Load the server-persisted scrape configuration (sources + interval) so the
+  // ticks reflect what actually drives the background scraper.
+  async function loadServerConfig() {
+    try {
+      const res = await fetch(`${API_BASE}/settings/scrape-config`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const src = (name: string) => (data.sources || []).find((s: any) => s.name === name);
+      const apply = (s: any, setActive: (v: boolean) => void, setUrl: (v: string) => void) => {
+        if (s) {
+          setActive(!!s.active);
+          setUrl(s.url || '');
+        }
+      };
+      apply(src('Zillow'), setZillowActive, setZillowUrl);
+      apply(src('Craigslist'), setCraigslistActive, setCraigslistUrl);
+      apply(src('Facebook'), setFacebookActive, setFacebookUrl);
+      apply(src('PropStream'), setPropStreamActive, setPropStreamUrl);
+      apply(src('BatchLeads'), setBatchLeadsActive, setBatchLeadsUrl);
+      apply(src('FSBO'), setFsboActive, setFsboUrl);
+      apply(src('Auction'), setAuctionActive, setAuctionUrl);
+      apply(src('Subject To'), setSubjectToActive, setSubjectToUrl);
+      apply(src('Realtors'), setRealtorsActive, setRealtorsUrl);
+      apply(src('Title Companies'), setTitleCompaniesActive, setTitleCompaniesUrl);
+      if (data.refreshInterval) setRefreshInterval(data.refreshInterval);
+    } catch {
+      // Server unavailable → keep the localStorage defaults already loaded
+    } finally {
+      setLoadingConfig(false);
+    }
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('pref_zillow_active', String(zillowActive));
     localStorage.setItem('pref_zillow_url', zillowUrl);
@@ -107,8 +180,43 @@ export default function SettingsPage() {
     localStorage.setItem('profile_email', userEmail);
     localStorage.setItem('profile_timezone', timeZone);
 
+    // Persist to the server and trigger immediate background scans for ticked sources
+    const sources = [
+      { name: 'Zillow', active: zillowActive, url: zillowUrl },
+      { name: 'Craigslist', active: craigslistActive, url: craigslistUrl },
+      { name: 'Facebook', active: facebookActive, url: facebookUrl },
+      { name: 'PropStream', active: propStreamActive, url: propStreamUrl },
+      { name: 'BatchLeads', active: batchLeadsActive, url: batchLeadsUrl },
+      { name: 'FSBO', active: fsboActive, url: fsboUrl },
+      { name: 'Auction', active: auctionActive, url: auctionUrl },
+      { name: 'Subject To', active: subjectToActive, url: subjectToUrl },
+      { name: 'Realtors', active: realtorsActive, url: realtorsUrl },
+      { name: 'Title Companies', active: titleCompaniesActive, url: titleCompaniesUrl },
+    ];
+    setTriggerStatus('');
+    try {
+      const res = await fetch(`${API_BASE}/settings/scrape-config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ sources, refreshInterval }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTriggerStatus('✓ ' + (data.message || 'Settings saved and background scans triggered.'));
+      } else {
+        setTriggerStatus('✕ Error: ' + (data.error || 'Failed to save settings.'));
+      }
+    } catch (err: any) {
+      setTriggerStatus('✕ Saved locally, but server sync failed: ' + (err.message || 'Network error.'));
+    }
+
+    loadRunLog();
     setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setTimeout(() => setSaved(false), 6000);
   };
 
   async function handleTriggerScrapes() {
@@ -144,6 +252,7 @@ export default function SettingsPage() {
       setTriggerStatus('✕ Error: ' + (err.message || 'Network error.'));
     } finally {
       setTriggering(false);
+      loadRunLog();
     }
   }
 
@@ -191,7 +300,11 @@ export default function SettingsPage() {
           <form onSubmit={handleSave} className="rounded-3xl border border-black/5 bg-white p-6 shadow-sm">
             {saved && (
               <div className="mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/15 p-4 text-xs font-bold text-emerald-700 flex justify-between items-center">
-                <span>✓ Configuration updated successfully.</span>
+                <span>
+                  {triggerStatus.startsWith('✓')
+                    ? triggerStatus
+                    : '✓ Configuration updated successfully.'}
+                </span>
                 <button type="button" onClick={() => setSaved(false)}>✕</button>
               </div>
             )}
@@ -200,7 +313,11 @@ export default function SettingsPage() {
             {activeSection === 'sources' && (
               <div>
                 <h3 className="text-base font-bold text-[#1A3C34] mb-1">Data Feed Channels</h3>
-                <p className="text-xs text-slate-550 mb-6">Choose platforms to monitor for wholesale leads and schedule ingest cycles.</p>
+                <p className="text-xs text-slate-550 mb-2">Choose platforms to monitor for wholesale leads and schedule ingest cycles.</p>
+                <p className="text-[10px] text-[#8A8A8A] mb-6">
+                  Tip: leave a URL blank and Zillow will auto-scrape your saved areas (counties/cities from the Areas page).
+                  All other sources fall back to their default search — paste a market-specific URL for the best results.
+                </p>
 
                 <div className="space-y-4">
                   <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
@@ -486,6 +603,73 @@ export default function SettingsPage() {
                     </select>
                   </div>
 
+                  {/* Recent background scans (status readout) */}
+                  <div className="border-t border-black/5 pt-4 mt-6">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-xs font-bold text-[#1A3C34] uppercase">Recent Background Scans</h4>
+                      <button
+                        type="button"
+                        onClick={loadRunLog}
+                        disabled={loadingRuns}
+                        className="text-[10px] font-bold text-[#1A3C34] hover:underline disabled:opacity-50"
+                      >
+                        {loadingRuns ? 'Refreshing…' : '↻ Refresh'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-450 mb-3">
+                      Proof that the background scraper is running — URL used, records saved, and any errors per source.
+                    </p>
+                    {runLog.length === 0 ? (
+                      <div className="rounded-2xl bg-slate-50 border border-black/5 p-4 text-center text-[10px] text-slate-450">
+                        No scans have run yet. Save your settings or hit "Run Active Scrapes Now" to start one.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-2xl border border-black/5 bg-slate-50">
+                        <table className="w-full text-left text-[10px]">
+                          <thead>
+                            <tr className="border-b border-black/5 text-[9px] font-bold uppercase tracking-widest text-[#8A8A8A]">
+                              <th className="px-3 py-2">Source</th>
+                              <th className="px-3 py-2">Status</th>
+                              <th className="px-3 py-2 text-right">Saved</th>
+                              <th className="px-3 py-2">Ran</th>
+                              <th className="px-3 py-2">URL used</th>
+                              <th className="px-3 py-2">Error</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {runLog.slice(0, 12).map((r) => (
+                              <tr key={r.id} className="border-b border-black/5 last:border-0 align-top">
+                                <td className="px-3 py-2 font-bold text-[#1A3C34]">{r.source}</td>
+                                <td className="px-3 py-2">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 font-semibold ${
+                                      r.status === 'completed' ? 'text-emerald-700' : r.status === 'failed' ? 'text-red-650' : 'text-amber-700'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full ${
+                                        r.status === 'completed'
+                                          ? 'bg-emerald-500'
+                                          : r.status === 'failed'
+                                          ? 'bg-red-500'
+                                          : 'bg-amber-500 animate-pulse'
+                                      }`}
+                                    />
+                                    {r.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-right font-semibold text-[#2C2C2C]">{r.records_saved ?? 0}</td>
+                                <td className="px-3 py-2 text-slate-550">{timeAgo(r.started_at)}</td>
+                                <td className="px-3 py-2 max-w-[220px] truncate text-slate-550" title={r.url}>{r.url || '—'}</td>
+                                <td className="px-3 py-2 max-w-[220px] truncate text-red-650" title={r.error}>{r.error || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Manual trigger section */}
                   <div className="border-t border-black/5 pt-4 mt-6">
                     <h4 className="text-xs font-bold text-[#1A3C34] uppercase mb-1">Manual Action</h4>
@@ -592,9 +776,10 @@ export default function SettingsPage() {
             <div className="mt-8 border-t border-black/5 pt-4 flex justify-end">
               <button
                 type="submit"
-                className="rounded-2xl bg-[#1A3C34] px-6 py-3 text-xs font-bold text-white hover:bg-[#1A3C34]/95 transition"
+                disabled={loadingConfig}
+                className="rounded-2xl bg-[#1A3C34] px-6 py-3 text-xs font-bold text-white hover:bg-[#1A3C34]/95 transition disabled:opacity-50"
               >
-                Save Settings
+                {loadingConfig ? 'Loading settings…' : 'Save Settings'}
               </button>
             </div>
           </form>

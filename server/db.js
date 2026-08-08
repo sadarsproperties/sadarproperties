@@ -48,6 +48,52 @@ export async function query(text, params = []) {
   return res.rows;
 }
 
+// ── Simple key/value settings store (JSONB) ──
+export async function getSetting(key, fallback = null) {
+  const rows = await query('SELECT value FROM settings WHERE key = $1', [key]);
+  return rows.length > 0 ? rows[0].value : fallback;
+}
+
+export async function setSetting(key, value) {
+  await query(
+    `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [key, JSON.stringify(value)]
+  );
+  return value;
+}
+
+// ── Scrape run log (per-source status readout) ──
+export async function startScrapeRun(source, url = '') {
+  const rows = await query(
+    `INSERT INTO scrape_runs (source, url, status, started_at) VALUES ($1, $2, 'running', NOW()) RETURNING id`,
+    [source, url]
+  );
+  return rows[0].id;
+}
+
+export async function finishScrapeRun(id, recordsSaved = 0) {
+  await query(
+    `UPDATE scrape_runs SET status = 'completed', records_saved = $2, finished_at = NOW() WHERE id = $1`,
+    [id, recordsSaved]
+  );
+}
+
+export async function failScrapeRun(id, error = '') {
+  const msg = String(error || 'Unknown error').slice(0, 500);
+  await query(
+    `UPDATE scrape_runs SET status = 'failed', error = $2, finished_at = NOW() WHERE id = $1`,
+    [id, msg]
+  );
+}
+
+export async function getScrapeRuns(limit = 50) {
+  return query(
+    `SELECT * FROM scrape_runs ORDER BY started_at DESC LIMIT $1`,
+    [Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)]
+  );
+}
+
 export async function initDb() {
   // Check if legacy database (with text primary keys) is currently active.
   // If so, drop all tables cascading so we can recreate them with clean UUID schemas.
@@ -326,6 +372,23 @@ export async function initDb() {
       notes_list JSONB DEFAULT '[]',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS scrape_runs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      source TEXT NOT NULL,
+      url TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'running',
+      records_saved INTEGER DEFAULT 0,
+      error TEXT DEFAULT '',
+      started_at TIMESTAMPTZ DEFAULT NOW(),
+      finished_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     -- Geographic county tag on properties for per-area rollups (idempotent)

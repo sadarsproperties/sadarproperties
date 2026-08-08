@@ -560,6 +560,34 @@ class AdapterRegistry {
 
 export const registry = new AdapterRegistry();
 
+/**
+ * Build the list of search URLs to scrape for a source.
+ * - An explicit URL wins.
+ * - Otherwise, for sources with derivable location URLs (Zillow), build one
+ *   per saved city/county area so the saved markets feed the scraper.
+ * - Returns [] when the source has no usable areas → caller falls back to the
+ *   scraper's built-in default URL.
+ */
+export function buildSearchUrls(source, url, areas = []) {
+  const trimmed = typeof url === 'string' ? url.trim() : '';
+  if (trimmed) return [trimmed];
+
+  const lower = String(source || '').toLowerCase();
+  if (lower !== 'zillow') return [];
+
+  const usable = (areas || []).filter(a => a && (a.city || a.countyName) && a.state);
+  if (!usable.length) return [];
+
+  const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const urls = [];
+  for (const a of usable) {
+    const loc = slugify(a.city) || slugify(a.countyName);
+    const st = slugify(a.state).slice(0, 2);
+    if (loc && st) urls.push(`https://www.zillow.com/homes/for_sale/${loc}-${st}_rb/`);
+  }
+  return urls;
+}
+
 export async function runScrapeTask(data) {
   const { source, url, filters } = data || {};
   if (!source) {
@@ -597,21 +625,62 @@ export async function runScrapeTask(data) {
     throw new Error(`runScrapeTask: No scraper class registered for source "${source}"`);
   }
 
-  // 1. Scrape raw items
-  const rawItems = await scraper.scrape({ url, ...filters });
-  console.log(`[runScrapeTask] Successfully scraped ${rawItems.length} raw items from ${source}`);
-
-  // 2. Normalize and save items with rate limiting delay
-  let count = 0;
-  for (const item of rawItems) {
-    // Rate limit delay between requests/processes
-    await scraper.delay();
-    
-    const normalized = await scraper.normalize(item);
-    const saved = await scraper.save(normalized);
-    if (saved) {
-      count++;
+  // Load saved areas (cities/counties) so the configured markets drive the scrape
+  let areas = data.areas;
+  if (!areas || !areas.length) {
+    try {
+      const { cities } = await import('./db.js');
+      const cityRows = await cities.list();
+      areas = cityRows.map(c => ({ city: c.cityName, state: c.state, countyName: c.countyName }));
+    } catch (err) {
+      console.warn(`[runScrapeTask] Could not load saved areas: ${err.message}`);
+      areas = [];
     }
+  }
+
+  const urls = buildSearchUrls(source, url, areas);
+  const targets = urls.length ? urls : [null]; // null → scraper default URL
+  let count = 0;
+
+  // Log this run for the Settings status readout (URL used, records, errors)
+  let runId = null;
+  try {
+    const { startScrapeRun } = await import('./db.js');
+    const urlLabel = (targets.filter(Boolean).join(' | ') || (url || '').trim() || '(default URL)').slice(0, 500);
+    runId = await startScrapeRun(source, urlLabel);
+  } catch (err) {
+    console.warn(`[runScrapeTask] Could not log scrape run start: ${err.message}`);
+  }
+
+  try {
+    for (const target of targets) {
+      // 1. Scrape raw items for this target URL
+      const rawItems = await scraper.scrape(target ? { url: target, ...filters } : { ...filters });
+      console.log(`[runScrapeTask] Scraped ${rawItems.length} raw items from ${source}${target ? ` (${target})` : ' (default URL)'}`);
+
+      // 2. Normalize and save items with rate limiting delay
+      for (const item of rawItems) {
+        // Rate limit delay between requests/processes
+        await scraper.delay();
+
+        const normalized = await scraper.normalize(item);
+        const saved = await scraper.save(normalized);
+        if (saved) {
+          count++;
+        }
+      }
+    }
+
+    if (runId) {
+      const { finishScrapeRun } = await import('./db.js');
+      await finishScrapeRun(runId, count).catch(() => {});
+    }
+  } catch (err) {
+    if (runId) {
+      const { failScrapeRun } = await import('./db.js');
+      await failScrapeRun(runId, err.message).catch(() => {});
+    }
+    throw err;
   }
 
   console.log(`[runScrapeTask] Completed scraping task for ${source}. Saved/updated ${count} records.`);
