@@ -908,7 +908,8 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.redirect(`${FRONTEND_URL}/dashboard?token=${encodeURIComponent(token)}`);
+    // OAuth users follow the same first-run flow: Settings first, then dashboard
+    res.redirect(`${FRONTEND_URL}/settings?setup=1&token=${encodeURIComponent(token)}`);
   } catch (e) {
     console.error('Google callback error:', e);
     res.redirect(`${FRONTEND_URL}/login?error=google_failed`);
@@ -961,7 +962,8 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.redirect(`${FRONTEND_URL}/dashboard?token=${encodeURIComponent(token)}`);
+    // OAuth users follow the same first-run flow: Settings first, then dashboard
+    res.redirect(`${FRONTEND_URL}/settings?setup=1&token=${encodeURIComponent(token)}`);
   } catch (e) {
     console.error('Facebook callback error:', e);
     res.redirect(`${FRONTEND_URL}/login?error=facebook_failed`);
