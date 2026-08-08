@@ -333,12 +333,20 @@ export async function rescheduleScrapers({ userId, runNow = false } = {}) {
 
 /**
  * Rebuild schedules for every registered user (called on boot) so each user's
- * own settings drive their own background scraping.
+ * own settings drive their own background scraping. Users who have never saved
+ * a scrape config are NOT scheduled — nothing scrapes for them until they
+ * explicitly save their settings (opt-in), which also avoids a boot-time
+ * scrape storm across all accounts.
  */
 export async function rescheduleAllUsers() {
   const { listUsers } = await import('./db.js');
   const users = await listUsers();
   for (const u of users) {
+    const saved = await getSetting(u.id, SCRAPE_SETTINGS_KEY, null);
+    if (!saved) {
+      console.log(`[Queue] User ${u.id} has no saved scrape config — no background schedule.`);
+      continue;
+    }
     await rescheduleScrapers({ userId: u.id, runNow: true });
   }
 }

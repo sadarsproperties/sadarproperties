@@ -20,6 +20,10 @@ const poolConfig = connectionString
       min: parseInt(process.env.PG_POOL_MIN || '2', 10),
       idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
       connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
+      // Force a search_path on every connection — Supabase's transaction pooler
+      // can hand out connections with an empty search_path, which breaks
+      // CREATE TABLE with "no schema has been selected to create in" (3F000).
+      options: '-c search_path=public',
       ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
     }
   : {
@@ -32,6 +36,7 @@ const poolConfig = connectionString
       min: parseInt(process.env.PG_POOL_MIN || '2', 10),
       idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
       connectionTimeoutMillis: parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
+      options: '-c search_path=public',
       ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
     };
 
