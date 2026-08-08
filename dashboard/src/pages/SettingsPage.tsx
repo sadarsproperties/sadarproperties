@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../api/client';
 import AppLayout from '../components/AppLayout';
 
 export default function SettingsPage() {
@@ -6,14 +7,30 @@ export default function SettingsPage() {
 
   // Data Sources Preferences
   const [zillowActive, setZillowActive] = useState(true);
+  const [zillowUrl, setZillowUrl] = useState('');
   const [craigslistActive, setCraigslistActive] = useState(true);
+  const [craigslistUrl, setCraigslistUrl] = useState('');
   const [facebookActive, setFacebookActive] = useState(false);
+  const [facebookUrl, setFacebookUrl] = useState('');
   const [propStreamActive, setPropStreamActive] = useState(true);
+  const [propStreamUrl, setPropStreamUrl] = useState('');
   const [batchLeadsActive, setBatchLeadsActive] = useState(false);
+  const [batchLeadsUrl, setBatchLeadsUrl] = useState('');
   const [fsboActive, setFsboActive] = useState(false);
+  const [fsboUrl, setFsboUrl] = useState('');
   const [auctionActive, setAuctionActive] = useState(false);
+  const [auctionUrl, setAuctionUrl] = useState('');
   const [subjectToActive, setSubjectToActive] = useState(false);
+  const [subjectToUrl, setSubjectToUrl] = useState('');
+  const [realtorsActive, setRealtorsActive] = useState(false);
+  const [realtorsUrl, setRealtorsUrl] = useState('');
+  const [titleCompaniesActive, setTitleCompaniesActive] = useState(false);
+  const [titleCompaniesUrl, setTitleCompaniesUrl] = useState('');
   const [refreshInterval, setRefreshInterval] = useState('24h');
+
+  // Triggering state
+  const [triggering, setTriggering] = useState(false);
+  const [triggerStatus, setTriggerStatus] = useState('');
 
   // Integrations Settings
   const [aiMode, setAiMode] = useState('standard');
@@ -30,13 +47,25 @@ export default function SettingsPage() {
   // Load configuration from local storage
   useEffect(() => {
     setZillowActive(localStorage.getItem('pref_zillow_active') !== 'false');
+    setZillowUrl(localStorage.getItem('pref_zillow_url') || '');
     setCraigslistActive(localStorage.getItem('pref_craigslist_active') !== 'false');
+    setCraigslistUrl(localStorage.getItem('pref_craigslist_url') || '');
     setFacebookActive(localStorage.getItem('pref_facebook_active') === 'true');
+    setFacebookUrl(localStorage.getItem('pref_facebook_url') || '');
     setPropStreamActive(localStorage.getItem('pref_propstream_active') !== 'false');
+    setPropStreamUrl(localStorage.getItem('pref_propstream_url') || '');
     setBatchLeadsActive(localStorage.getItem('pref_batchleads_active') === 'true');
+    setBatchLeadsUrl(localStorage.getItem('pref_batchleads_url') || '');
     setFsboActive(localStorage.getItem('pref_fsbo_active') === 'true');
+    setFsboUrl(localStorage.getItem('pref_fsbo_url') || '');
     setAuctionActive(localStorage.getItem('pref_auction_active') === 'true');
+    setAuctionUrl(localStorage.getItem('pref_auction_url') || '');
     setSubjectToActive(localStorage.getItem('pref_subjectto_active') === 'true');
+    setSubjectToUrl(localStorage.getItem('pref_subjectto_url') || '');
+    setRealtorsActive(localStorage.getItem('pref_realtors_active') === 'true');
+    setRealtorsUrl(localStorage.getItem('pref_realtors_url') || '');
+    setTitleCompaniesActive(localStorage.getItem('pref_titlecompanies_active') === 'true');
+    setTitleCompaniesUrl(localStorage.getItem('pref_titlecompanies_url') || '');
     setRefreshInterval(localStorage.getItem('pref_refresh_interval') || '24h');
 
     setAiMode(localStorage.getItem('pref_ai_mode') || 'standard');
@@ -50,13 +79,25 @@ export default function SettingsPage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('pref_zillow_active', String(zillowActive));
+    localStorage.setItem('pref_zillow_url', zillowUrl);
     localStorage.setItem('pref_craigslist_active', String(craigslistActive));
+    localStorage.setItem('pref_craigslist_url', craigslistUrl);
     localStorage.setItem('pref_facebook_active', String(facebookActive));
+    localStorage.setItem('pref_facebook_url', facebookUrl);
     localStorage.setItem('pref_propstream_active', String(propStreamActive));
+    localStorage.setItem('pref_propstream_url', propStreamUrl);
     localStorage.setItem('pref_batchleads_active', String(batchLeadsActive));
+    localStorage.setItem('pref_batchleads_url', batchLeadsUrl);
     localStorage.setItem('pref_fsbo_active', String(fsboActive));
+    localStorage.setItem('pref_fsbo_url', fsboUrl);
     localStorage.setItem('pref_auction_active', String(auctionActive));
+    localStorage.setItem('pref_auction_url', auctionUrl);
     localStorage.setItem('pref_subjectto_active', String(subjectToActive));
+    localStorage.setItem('pref_subjectto_url', subjectToUrl);
+    localStorage.setItem('pref_realtors_active', String(realtorsActive));
+    localStorage.setItem('pref_realtors_url', realtorsUrl);
+    localStorage.setItem('pref_titlecompanies_active', String(titleCompaniesActive));
+    localStorage.setItem('pref_titlecompanies_url', titleCompaniesUrl);
     localStorage.setItem('pref_refresh_interval', refreshInterval);
 
     localStorage.setItem('pref_ai_mode', aiMode);
@@ -69,6 +110,42 @@ export default function SettingsPage() {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
+
+  async function handleTriggerScrapes() {
+    setTriggering(true);
+    setTriggerStatus('');
+    const feeds: Record<string, string> = {};
+    if (zillowActive) feeds['Zillow'] = zillowUrl || 'https://www.zillow.com/homes/for_sale/';
+    if (craigslistActive) feeds['Craigslist'] = craigslistUrl || 'https://newyork.craigslist.org/search/apt';
+    if (facebookActive) feeds['Facebook'] = facebookUrl || 'https://www.facebook.com/marketplace/nyc/propertyrentals';
+    if (propStreamActive) feeds['PropStream'] = propStreamUrl || 'https://www.propstream.com/listings';
+    if (batchLeadsActive) feeds['BatchLeads'] = batchLeadsUrl || 'https://www.batchleads.io/properties';
+    if (fsboActive) feeds['FSBO'] = fsboUrl || 'https://fsbo.com/listings';
+    if (auctionActive) feeds['Auction'] = auctionUrl || 'https://www.auction.com/listings';
+    if (subjectToActive) feeds['Subject To'] = subjectToUrl || 'https://subjectto.com/listings';
+    if (realtorsActive) feeds['Realtors'] = realtorsUrl || 'https://www.realtor.com/realtor-directory';
+    if (titleCompaniesActive) feeds['Title Companies'] = titleCompaniesUrl || 'https://www.yellowpages.com/search?q=title+companies';
+
+    try {
+      const response = await fetch(`${API_BASE}/settings/trigger-scrapes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ feeds })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setTriggerStatus('✓ ' + (data.message || 'Scrapes successfully triggered!'));
+      } else {
+        setTriggerStatus('✕ Error: ' + (data.error || 'Failed to trigger scans.'));
+      }
+    } catch (err: any) {
+      setTriggerStatus('✕ Error: ' + (err.message || 'Network error.'));
+    } finally {
+      setTriggering(false);
+    }
+  }
 
   return (
     <AppLayout title="Settings">
@@ -126,108 +203,274 @@ export default function SettingsPage() {
                 <p className="text-xs text-slate-550 mb-6">Choose platforms to monitor for wholesale leads and schedule ingest cycles.</p>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">Zillow Feed</p>
-                      <p className="text-[10px] text-slate-450">Scan for active single-family properties.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Zillow Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan for active single-family properties.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={zillowActive}
+                        onChange={e => setZillowActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={zillowActive}
-                      onChange={e => setZillowActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {zillowActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Search URL / Location</label>
+                        <input
+                          type="text"
+                          value={zillowUrl}
+                          onChange={e => setZillowUrl(e.target.value)}
+                          placeholder="e.g., https://www.zillow.com/homes/for_sale/Austin-TX/"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">Craigslist Feed</p>
-                      <p className="text-[10px] text-slate-450">Scan for direct-by-owner motivated listings.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Craigslist Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan for direct-by-owner motivated listings.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={craigslistActive}
+                        onChange={e => setCraigslistActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={craigslistActive}
-                      onChange={e => setCraigslistActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {craigslistActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Craigslist URL</label>
+                        <input
+                          type="text"
+                          value={craigslistUrl}
+                          onChange={e => setCraigslistUrl(e.target.value)}
+                          placeholder="e.g., https://austin.craigslist.org/search/hhh"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">Facebook Marketplace</p>
-                      <p className="text-[10px] text-slate-450">Scan local groups for off-market wholesale deals.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Facebook Marketplace</p>
+                        <p className="text-[10px] text-slate-450">Scan local groups for off-market wholesale deals.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={facebookActive}
+                        onChange={e => setFacebookActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={facebookActive}
-                      onChange={e => setFacebookActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {facebookActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Facebook Group / URL</label>
+                        <input
+                          type="text"
+                          value={facebookUrl}
+                          onChange={e => setFacebookUrl(e.target.value)}
+                          placeholder="e.g., https://www.facebook.com/marketplace/nyc/propertyrentals"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">PropStream Feed</p>
-                      <p className="text-[10px] text-slate-450">Import pre-foreclosures and absentee data lists.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">PropStream Feed</p>
+                        <p className="text-[10px] text-slate-450">Import pre-foreclosures and absentee data lists.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={propStreamActive}
+                        onChange={e => setPropStreamActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={propStreamActive}
-                      onChange={e => setPropStreamActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {propStreamActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target PropStream URL</label>
+                        <input
+                          type="text"
+                          value={propStreamUrl}
+                          onChange={e => setPropStreamUrl(e.target.value)}
+                          placeholder="e.g., https://www.propstream.com/listings"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">BatchLeads Integration</p>
-                      <p className="text-[10px] text-slate-450">Automatically import phone and contact skip-traces.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">BatchLeads Integration</p>
+                        <p className="text-[10px] text-slate-450">Automatically import phone and contact skip-traces.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={batchLeadsActive}
+                        onChange={e => setBatchLeadsActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={batchLeadsActive}
-                      onChange={e => setBatchLeadsActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {batchLeadsActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target BatchLeads URL / Endpoint</label>
+                        <input
+                          type="text"
+                          value={batchLeadsUrl}
+                          onChange={e => setBatchLeadsUrl(e.target.value)}
+                          placeholder="e.g., https://www.batchleads.io/properties"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">FSBO Feed</p>
-                      <p className="text-[10px] text-slate-450">Scan For-Sale-By-Owner listings for direct-seller deals.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">FSBO Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan For-Sale-By-Owner listings for direct-seller deals.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={fsboActive}
+                        onChange={e => setFsboActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={fsboActive}
-                      onChange={e => setFsboActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {fsboActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target FSBO URL</label>
+                        <input
+                          type="text"
+                          value={fsboUrl}
+                          onChange={e => setFsboUrl(e.target.value)}
+                          placeholder="e.g., https://fsbo.com/listings"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">Auction Feed</p>
-                      <p className="text-[10px] text-slate-450">Scan auction marketplaces for bank-owned and distressed lots.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Auction Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan auction marketplaces for bank-owned and distressed lots.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={auctionActive}
+                        onChange={e => setAuctionActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={auctionActive}
-                      onChange={e => setAuctionActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {auctionActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Auction URL</label>
+                        <input
+                          type="text"
+                          value={auctionUrl}
+                          onChange={e => setAuctionUrl(e.target.value)}
+                          placeholder="e.g., https://www.auction.com/listings"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-black/5">
-                    <div>
-                      <p className="text-xs font-bold text-[#1A3C34]">Subject-To Feed</p>
-                      <p className="text-[10px] text-slate-450">Track subject-to / creative-finance seller leads.</p>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Subject-To Feed</p>
+                        <p className="text-[10px] text-slate-450">Track subject-to / creative-finance seller leads.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={subjectToActive}
+                        onChange={e => setSubjectToActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={subjectToActive}
-                      onChange={e => setSubjectToActive(e.target.checked)}
-                      className="h-4 w-4 accent-[#1A3C34] rounded"
-                    />
+                    {subjectToActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Subject-To URL</label>
+                        <input
+                          type="text"
+                          value={subjectToUrl}
+                          onChange={e => setSubjectToUrl(e.target.value)}
+                          placeholder="e.g., https://subjectto.com/listings"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Realtors Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan and import area realtors to your CRM network.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={realtorsActive}
+                        onChange={e => setRealtorsActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
+                    </div>
+                    {realtorsActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Realtor Directory URL</label>
+                        <input
+                          type="text"
+                          value={realtorsUrl}
+                          onChange={e => setRealtorsUrl(e.target.value)}
+                          placeholder="e.g., https://www.realtor.com/realtor-directory"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-black/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-[#1A3C34]">Title Companies Feed</p>
+                        <p className="text-[10px] text-slate-450">Scan and import local closing agents/title companies.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={titleCompaniesActive}
+                        onChange={e => setTitleCompaniesActive(e.target.checked)}
+                        className="h-4 w-4 accent-[#1A3C34] rounded"
+                      />
+                    </div>
+                    {titleCompaniesActive && (
+                      <div className="mt-2 border-t border-black/5 pt-2">
+                        <label className="block text-[9px] font-bold text-[#8A8A8A] uppercase">Target Title Companies Directory</label>
+                        <input
+                          type="text"
+                          value={titleCompaniesUrl}
+                          onChange={e => setTitleCompaniesUrl(e.target.value)}
+                          placeholder="e.g., https://www.yellowpages.com/search?q=title+companies"
+                          className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs outline-none focus:border-[#1A3C34]"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-black/5 pt-4">
@@ -241,6 +484,25 @@ export default function SettingsPage() {
                       <option value="24h">Daily (Every 24 hours)</option>
                       <option value="48h">Every 2 Days (Every 48 hours)</option>
                     </select>
+                  </div>
+
+                  {/* Manual trigger section */}
+                  <div className="border-t border-black/5 pt-4 mt-6">
+                    <h4 className="text-xs font-bold text-[#1A3C34] uppercase mb-1">Manual Action</h4>
+                    <p className="text-[10px] text-slate-450 mb-3">Staggered background scans run daily, but you can run them immediately in the background here.</p>
+                    <button
+                      type="button"
+                      disabled={triggering}
+                      onClick={handleTriggerScrapes}
+                      className="w-full py-3 px-4 rounded-2xl bg-[#F5A623] text-[#1A3C34] text-xs font-bold shadow hover:brightness-95 transition disabled:opacity-60"
+                    >
+                      {triggering ? 'Triggering Scans...' : '⚡ Run Active Scrapes Now'}
+                    </button>
+                    {triggerStatus && (
+                      <p className={`mt-2 text-xs font-semibold ${triggerStatus.startsWith('✕') ? 'text-red-650' : 'text-emerald-650'}`}>
+                        {triggerStatus}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

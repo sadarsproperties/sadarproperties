@@ -1115,6 +1115,26 @@ app.get('/api/geo/areas', requireAuth, async (_req, res) => {
     console.error('[Geo] areas error:', err.message);
     res.status(500).json({ error: 'Failed to load areas: ' + err.message });
   }
+// Trigger active data feed scans immediately in the background queue.
+app.post('/api/settings/trigger-scrapes', requireAuth, async (req, res) => {
+  const { feeds } = req.body;
+  if (!feeds || typeof feeds !== 'object') {
+    return res.status(400).json({ error: 'Invalid feeds payload' });
+  }
+
+  try {
+    const triggered = [];
+    for (const [source, url] of Object.entries(feeds)) {
+      if (url && typeof url === 'string') {
+        await addJob('scrape_source', { source, url: url.trim() });
+        triggered.push(source);
+      }
+    }
+    res.json({ success: true, message: `Successfully triggered background scans for: ${triggered.join(', ')}` });
+  } catch (err) {
+    console.error('[Settings] Trigger scrapes error:', err);
+    res.status(500).json({ error: 'Failed to trigger scans: ' + err.message });
+  }
 });
 
 // ==================== AUTOMATED MATCHING & AI ====================
