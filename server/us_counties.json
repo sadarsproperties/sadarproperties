@@ -1,0 +1,2286 @@
+[
+  {
+    "name": "Cuming",
+    "state": "NE"
+  },
+  {
+    "name": "Lancaster",
+    "state": "NE"
+  },
+  {
+    "name": "Nuckolls",
+    "state": "NE"
+  },
+  {
+    "name": "Keith",
+    "state": "NE"
+  },
+  {
+    "name": "Phelps",
+    "state": "NE"
+  },
+  {
+    "name": "Webster",
+    "state": "NE"
+  },
+  {
+    "name": "Dakota",
+    "state": "NE"
+  },
+  {
+    "name": "Boyd",
+    "state": "NE"
+  },
+  {
+    "name": "Thomas",
+    "state": "NE"
+  },
+  {
+    "name": "Holt",
+    "state": "NE"
+  },
+  {
+    "name": "Brown",
+    "state": "NE"
+  },
+  {
+    "name": "Keya Paha",
+    "state": "NE"
+  },
+  {
+    "name": "Banner",
+    "state": "NE"
+  },
+  {
+    "name": "Greeley",
+    "state": "NE"
+  },
+  {
+    "name": "Jefferson",
+    "state": "NE"
+  },
+  {
+    "name": "Saline",
+    "state": "NE"
+  },
+  {
+    "name": "Dundy",
+    "state": "NE"
+  },
+  {
+    "name": "Scotts Bluff",
+    "state": "NE"
+  },
+  {
+    "name": "Adams",
+    "state": "NE"
+  },
+  {
+    "name": "Otoe",
+    "state": "NE"
+  },
+  {
+    "name": "Kearney",
+    "state": "NE"
+  },
+  {
+    "name": "Hitchcock",
+    "state": "NE"
+  },
+  {
+    "name": "Kimball",
+    "state": "NE"
+  },
+  {
+    "name": "Nemaha",
+    "state": "NE"
+  },
+  {
+    "name": "Custer",
+    "state": "NE"
+  },
+  {
+    "name": "Cass",
+    "state": "NE"
+  },
+  {
+    "name": "Polk",
+    "state": "NE"
+  },
+  {
+    "name": "Dawes",
+    "state": "NE"
+  },
+  {
+    "name": "Wayne",
+    "state": "NE"
+  },
+  {
+    "name": "Garfield",
+    "state": "NE"
+  },
+  {
+    "name": "Douglas",
+    "state": "NE"
+  },
+  {
+    "name": "Pierce",
+    "state": "NE"
+  },
+  {
+    "name": "Platte",
+    "state": "NE"
+  },
+  {
+    "name": "Box Butte",
+    "state": "NE"
+  },
+  {
+    "name": "Thurston",
+    "state": "NE"
+  },
+  {
+    "name": "Boone",
+    "state": "NE"
+  },
+  {
+    "name": "Madison",
+    "state": "NE"
+  },
+  {
+    "name": "Mcpherson",
+    "state": "NE"
+  },
+  {
+    "name": "Red Willow",
+    "state": "NE"
+  },
+  {
+    "name": "Rock",
+    "state": "NE"
+  },
+  {
+    "name": "Gosper",
+    "state": "NE"
+  },
+  {
+    "name": "Gage",
+    "state": "NE"
+  },
+  {
+    "name": "Dawson",
+    "state": "NE"
+  },
+  {
+    "name": "Arthur",
+    "state": "NE"
+  },
+  {
+    "name": "Hayes",
+    "state": "NE"
+  },
+  {
+    "name": "Johnson",
+    "state": "NE"
+  },
+  {
+    "name": "Antelope",
+    "state": "NE"
+  },
+  {
+    "name": "Sioux",
+    "state": "NE"
+  },
+  {
+    "name": "Lincoln",
+    "state": "NE"
+  },
+  {
+    "name": "Sherman",
+    "state": "NE"
+  },
+  {
+    "name": "Logan",
+    "state": "NE"
+  },
+  {
+    "name": "Merrick",
+    "state": "NE"
+  },
+  {
+    "name": "Sheridan",
+    "state": "NE"
+  },
+  {
+    "name": "Pawnee",
+    "state": "NE"
+  },
+  {
+    "name": "Sarpy",
+    "state": "NE"
+  },
+  {
+    "name": "Grant",
+    "state": "NE"
+  },
+  {
+    "name": "Burt",
+    "state": "NE"
+  },
+  {
+    "name": "Saunders",
+    "state": "NE"
+  },
+  {
+    "name": "Blaine",
+    "state": "NE"
+  },
+  {
+    "name": "Dixon",
+    "state": "NE"
+  },
+  {
+    "name": "Stanton",
+    "state": "NE"
+  },
+  {
+    "name": "Wheeler",
+    "state": "NE"
+  },
+  {
+    "name": "Franklin",
+    "state": "NE"
+  },
+  {
+    "name": "Dodge",
+    "state": "NE"
+  },
+  {
+    "name": "Chase",
+    "state": "NE"
+  },
+  {
+    "name": "Buffalo",
+    "state": "NE"
+  },
+  {
+    "name": "Fillmore",
+    "state": "NE"
+  },
+  {
+    "name": "York",
+    "state": "NE"
+  },
+  {
+    "name": "Seward",
+    "state": "NE"
+  },
+  {
+    "name": "Clay",
+    "state": "NE"
+  },
+  {
+    "name": "Cheyenne",
+    "state": "NE"
+  },
+  {
+    "name": "Garden",
+    "state": "NE"
+  },
+  {
+    "name": "Harlan",
+    "state": "NE"
+  },
+  {
+    "name": "Washington",
+    "state": "NE"
+  },
+  {
+    "name": "Hooker",
+    "state": "NE"
+  },
+  {
+    "name": "Richardson",
+    "state": "NE"
+  },
+  {
+    "name": "Furnas",
+    "state": "NE"
+  },
+  {
+    "name": "Howard",
+    "state": "NE"
+  },
+  {
+    "name": "Valley",
+    "state": "NE"
+  },
+  {
+    "name": "Cedar",
+    "state": "NE"
+  },
+  {
+    "name": "Thayer",
+    "state": "NE"
+  },
+  {
+    "name": "Deuel",
+    "state": "NE"
+  },
+  {
+    "name": "Morrill",
+    "state": "NE"
+  },
+  {
+    "name": "Hall",
+    "state": "NE"
+  },
+  {
+    "name": "Hamilton",
+    "state": "NE"
+  },
+  {
+    "name": "Loup",
+    "state": "NE"
+  },
+  {
+    "name": "Frontier",
+    "state": "NE"
+  },
+  {
+    "name": "Nance",
+    "state": "NE"
+  },
+  {
+    "name": "Knox",
+    "state": "NE"
+  },
+  {
+    "name": "Perkins",
+    "state": "NE"
+  },
+  {
+    "name": "Colfax",
+    "state": "NE"
+  },
+  {
+    "name": "Butler",
+    "state": "NE"
+  },
+  {
+    "name": "Cherry",
+    "state": "NE"
+  },
+  {
+    "name": "Wahkiakum",
+    "state": "WA"
+  },
+  {
+    "name": "Lewis",
+    "state": "WA"
+  },
+  {
+    "name": "Jefferson",
+    "state": "WA"
+  },
+  {
+    "name": "Columbia",
+    "state": "WA"
+  },
+  {
+    "name": "Kittitas",
+    "state": "WA"
+  },
+  {
+    "name": "Snohomish",
+    "state": "WA"
+  },
+  {
+    "name": "Yakima",
+    "state": "WA"
+  },
+  {
+    "name": "Okanogan",
+    "state": "WA"
+  },
+  {
+    "name": "Spokane",
+    "state": "WA"
+  },
+  {
+    "name": "Island",
+    "state": "WA"
+  },
+  {
+    "name": "Clallam",
+    "state": "WA"
+  },
+  {
+    "name": "Stevens",
+    "state": "WA"
+  },
+  {
+    "name": "Pend Oreille",
+    "state": "WA"
+  },
+  {
+    "name": "Whatcom",
+    "state": "WA"
+  },
+  {
+    "name": "Chelan",
+    "state": "WA"
+  },
+  {
+    "name": "Asotin",
+    "state": "WA"
+  },
+  {
+    "name": "Ferry",
+    "state": "WA"
+  },
+  {
+    "name": "Douglas",
+    "state": "WA"
+  },
+  {
+    "name": "Benton",
+    "state": "WA"
+  },
+  {
+    "name": "Garfield",
+    "state": "WA"
+  },
+  {
+    "name": "King",
+    "state": "WA"
+  },
+  {
+    "name": "Pacific",
+    "state": "WA"
+  },
+  {
+    "name": "Klickitat",
+    "state": "WA"
+  },
+  {
+    "name": "San Juan",
+    "state": "WA"
+  },
+  {
+    "name": "Grays Harbor",
+    "state": "WA"
+  },
+  {
+    "name": "Cowlitz",
+    "state": "WA"
+  },
+  {
+    "name": "Walla Walla",
+    "state": "WA"
+  },
+  {
+    "name": "Grant",
+    "state": "WA"
+  },
+  {
+    "name": "Adams",
+    "state": "WA"
+  },
+  {
+    "name": "Clark",
+    "state": "WA"
+  },
+  {
+    "name": "Lincoln",
+    "state": "WA"
+  },
+  {
+    "name": "Kitsap",
+    "state": "WA"
+  },
+  {
+    "name": "Whitman",
+    "state": "WA"
+  },
+  {
+    "name": "Mason",
+    "state": "WA"
+  },
+  {
+    "name": "Skagit",
+    "state": "WA"
+  },
+  {
+    "name": "Pierce",
+    "state": "WA"
+  },
+  {
+    "name": "Thurston",
+    "state": "WA"
+  },
+  {
+    "name": "Franklin",
+    "state": "WA"
+  },
+  {
+    "name": "Skamania",
+    "state": "WA"
+  },
+  {
+    "name": "De Baca",
+    "state": "NM"
+  },
+  {
+    "name": "Otero",
+    "state": "NM"
+  },
+  {
+    "name": "Catron",
+    "state": "NM"
+  },
+  {
+    "name": "Union",
+    "state": "NM"
+  },
+  {
+    "name": "San Miguel",
+    "state": "NM"
+  },
+  {
+    "name": "Taos",
+    "state": "NM"
+  },
+  {
+    "name": "Grant",
+    "state": "NM"
+  },
+  {
+    "name": "Colfax",
+    "state": "NM"
+  },
+  {
+    "name": "Sandoval",
+    "state": "NM"
+  },
+  {
+    "name": "Cibola",
+    "state": "NM"
+  },
+  {
+    "name": "Do\\u00f1a Ana",
+    "state": "NM"
+  },
+  {
+    "name": "Harding",
+    "state": "NM"
+  },
+  {
+    "name": "Hidalgo",
+    "state": "NM"
+  },
+  {
+    "name": "Socorro",
+    "state": "NM"
+  },
+  {
+    "name": "Los Alamos",
+    "state": "NM"
+  },
+  {
+    "name": "Mora",
+    "state": "NM"
+  },
+  {
+    "name": "Eddy",
+    "state": "NM"
+  },
+  {
+    "name": "Curry",
+    "state": "NM"
+  },
+  {
+    "name": "Roosevelt",
+    "state": "NM"
+  },
+  {
+    "name": "San Juan",
+    "state": "NM"
+  },
+  {
+    "name": "Lincoln",
+    "state": "NM"
+  },
+  {
+    "name": "Guadalupe",
+    "state": "NM"
+  },
+  {
+    "name": "Torrance",
+    "state": "NM"
+  },
+  {
+    "name": "Luna",
+    "state": "NM"
+  },
+  {
+    "name": "Mckinley",
+    "state": "NM"
+  },
+  {
+    "name": "Rio Arriba",
+    "state": "NM"
+  },
+  {
+    "name": "Lea",
+    "state": "NM"
+  },
+  {
+    "name": "Chaves",
+    "state": "NM"
+  },
+  {
+    "name": "Santa Fe",
+    "state": "NM"
+  },
+  {
+    "name": "Quay",
+    "state": "NM"
+  },
+  {
+    "name": "Bernalillo",
+    "state": "NM"
+  },
+  {
+    "name": "Sierra",
+    "state": "NM"
+  },
+  {
+    "name": "Valencia",
+    "state": "NM"
+  },
+  {
+    "name": "Minnehaha",
+    "state": "SD"
+  },
+  {
+    "name": "Hutchinson",
+    "state": "SD"
+  },
+  {
+    "name": "Moody",
+    "state": "SD"
+  },
+  {
+    "name": "Douglas",
+    "state": "SD"
+  },
+  {
+    "name": "Deuel",
+    "state": "SD"
+  },
+  {
+    "name": "Clark",
+    "state": "SD"
+  },
+  {
+    "name": "Miner",
+    "state": "SD"
+  },
+  {
+    "name": "Jerauld",
+    "state": "SD"
+  },
+  {
+    "name": "Mccook",
+    "state": "SD"
+  },
+  {
+    "name": "Lawrence",
+    "state": "SD"
+  },
+  {
+    "name": "Ziebach",
+    "state": "SD"
+  },
+  {
+    "name": "Brule",
+    "state": "SD"
+  },
+  {
+    "name": "Sully",
+    "state": "SD"
+  },
+  {
+    "name": "Walworth",
+    "state": "SD"
+  },
+  {
+    "name": "Kingsbury",
+    "state": "SD"
+  },
+  {
+    "name": "Haakon",
+    "state": "SD"
+  },
+  {
+    "name": "Hanson",
+    "state": "SD"
+  },
+  {
+    "name": "Dewey",
+    "state": "SD"
+  },
+  {
+    "name": "Clay",
+    "state": "SD"
+  },
+  {
+    "name": "Yankton",
+    "state": "SD"
+  },
+  {
+    "name": "Brown",
+    "state": "SD"
+  },
+  {
+    "name": "Lake",
+    "state": "SD"
+  },
+  {
+    "name": "Lyman",
+    "state": "SD"
+  },
+  {
+    "name": "Jackson",
+    "state": "SD"
+  },
+  {
+    "name": "Custer",
+    "state": "SD"
+  },
+  {
+    "name": "Beadle",
+    "state": "SD"
+  },
+  {
+    "name": "Jones",
+    "state": "SD"
+  },
+  {
+    "name": "Campbell",
+    "state": "SD"
+  },
+  {
+    "name": "Harding",
+    "state": "SD"
+  },
+  {
+    "name": "Codington",
+    "state": "SD"
+  },
+  {
+    "name": "Bon Homme",
+    "state": "SD"
+  },
+  {
+    "name": "Bennett",
+    "state": "SD"
+  },
+  {
+    "name": "Roberts",
+    "state": "SD"
+  },
+  {
+    "name": "Todd",
+    "state": "SD"
+  },
+  {
+    "name": "Turner",
+    "state": "SD"
+  },
+  {
+    "name": "Davison",
+    "state": "SD"
+  },
+  {
+    "name": "Stanley",
+    "state": "SD"
+  },
+  {
+    "name": "Aurora",
+    "state": "SD"
+  },
+  {
+    "name": "Pennington",
+    "state": "SD"
+  },
+  {
+    "name": "Lincoln",
+    "state": "SD"
+  },
+  {
+    "name": "Perkins",
+    "state": "SD"
+  },
+  {
+    "name": "Brookings",
+    "state": "SD"
+  },
+  {
+    "name": "Buffalo",
+    "state": "SD"
+  },
+  {
+    "name": "Mellette",
+    "state": "SD"
+  },
+  {
+    "name": "Potter",
+    "state": "SD"
+  },
+  {
+    "name": "Fall River",
+    "state": "SD"
+  },
+  {
+    "name": "Hughes",
+    "state": "SD"
+  },
+  {
+    "name": "Hyde",
+    "state": "SD"
+  },
+  {
+    "name": "Hamlin",
+    "state": "SD"
+  },
+  {
+    "name": "Edmunds",
+    "state": "SD"
+  },
+  {
+    "name": "Hand",
+    "state": "SD"
+  },
+  {
+    "name": "Spink",
+    "state": "SD"
+  },
+  {
+    "name": "Faulk",
+    "state": "SD"
+  },
+  {
+    "name": "Butte",
+    "state": "SD"
+  },
+  {
+    "name": "Meade",
+    "state": "SD"
+  },
+  {
+    "name": "Mcpherson",
+    "state": "SD"
+  },
+  {
+    "name": "Oglala Lakota",
+    "state": "SD"
+  },
+  {
+    "name": "Charles Mix",
+    "state": "SD"
+  },
+  {
+    "name": "Union",
+    "state": "SD"
+  },
+  {
+    "name": "Day",
+    "state": "SD"
+  },
+  {
+    "name": "Tripp",
+    "state": "SD"
+  },
+  {
+    "name": "Sanborn",
+    "state": "SD"
+  },
+  {
+    "name": "Corson",
+    "state": "SD"
+  },
+  {
+    "name": "Gregory",
+    "state": "SD"
+  },
+  {
+    "name": "Grant",
+    "state": "SD"
+  },
+  {
+    "name": "Marshall",
+    "state": "SD"
+  },
+  {
+    "name": "Menard",
+    "state": "TX"
+  },
+  {
+    "name": "Hale",
+    "state": "TX"
+  },
+  {
+    "name": "Armstrong",
+    "state": "TX"
+  },
+  {
+    "name": "Calhoun",
+    "state": "TX"
+  },
+  {
+    "name": "Clay",
+    "state": "TX"
+  },
+  {
+    "name": "Orange",
+    "state": "TX"
+  },
+  {
+    "name": "Gonzales",
+    "state": "TX"
+  },
+  {
+    "name": "Fannin",
+    "state": "TX"
+  },
+  {
+    "name": "Kerr",
+    "state": "TX"
+  },
+  {
+    "name": "Refugio",
+    "state": "TX"
+  },
+  {
+    "name": "Jim Hogg",
+    "state": "TX"
+  },
+  {
+    "name": "Dimmit",
+    "state": "TX"
+  },
+  {
+    "name": "Nolan",
+    "state": "TX"
+  },
+  {
+    "name": "Brazos",
+    "state": "TX"
+  },
+  {
+    "name": "Jefferson",
+    "state": "TX"
+  },
+  {
+    "name": "Bell",
+    "state": "TX"
+  },
+  {
+    "name": "Bandera",
+    "state": "TX"
+  },
+  {
+    "name": "Hidalgo",
+    "state": "TX"
+  },
+  {
+    "name": "Schleicher",
+    "state": "TX"
+  },
+  {
+    "name": "Grayson",
+    "state": "TX"
+  },
+  {
+    "name": "Crosby",
+    "state": "TX"
+  },
+  {
+    "name": "Delta",
+    "state": "TX"
+  },
+  {
+    "name": "Zavala",
+    "state": "TX"
+  },
+  {
+    "name": "Rockwall",
+    "state": "TX"
+  },
+  {
+    "name": "Eastland",
+    "state": "TX"
+  },
+  {
+    "name": "Dewitt",
+    "state": "TX"
+  },
+  {
+    "name": "Angelina",
+    "state": "TX"
+  },
+  {
+    "name": "Mclennan",
+    "state": "TX"
+  },
+  {
+    "name": "Lamar",
+    "state": "TX"
+  },
+  {
+    "name": "Leon",
+    "state": "TX"
+  },
+  {
+    "name": "Stonewall",
+    "state": "TX"
+  },
+  {
+    "name": "Mcmullen",
+    "state": "TX"
+  },
+  {
+    "name": "Sutton",
+    "state": "TX"
+  },
+  {
+    "name": "Fort Bend",
+    "state": "TX"
+  },
+  {
+    "name": "Parker",
+    "state": "TX"
+  },
+  {
+    "name": "Kinney",
+    "state": "TX"
+  },
+  {
+    "name": "Fayette",
+    "state": "TX"
+  },
+  {
+    "name": "Briscoe",
+    "state": "TX"
+  },
+  {
+    "name": "Harrison",
+    "state": "TX"
+  },
+  {
+    "name": "Reagan",
+    "state": "TX"
+  },
+  {
+    "name": "Coleman",
+    "state": "TX"
+  },
+  {
+    "name": "Ochiltree",
+    "state": "TX"
+  },
+  {
+    "name": "Crane",
+    "state": "TX"
+  },
+  {
+    "name": "Washington",
+    "state": "TX"
+  },
+  {
+    "name": "Lynn",
+    "state": "TX"
+  },
+  {
+    "name": "Mills",
+    "state": "TX"
+  },
+  {
+    "name": "Oldham",
+    "state": "TX"
+  },
+  {
+    "name": "Sabine",
+    "state": "TX"
+  },
+  {
+    "name": "Hopkins",
+    "state": "TX"
+  },
+  {
+    "name": "Houston",
+    "state": "TX"
+  },
+  {
+    "name": "Bexar",
+    "state": "TX"
+  },
+  {
+    "name": "Upton",
+    "state": "TX"
+  },
+  {
+    "name": "Erath",
+    "state": "TX"
+  },
+  {
+    "name": "Randall",
+    "state": "TX"
+  },
+  {
+    "name": "Rusk",
+    "state": "TX"
+  },
+  {
+    "name": "Coryell",
+    "state": "TX"
+  },
+  {
+    "name": "Comal",
+    "state": "TX"
+  },
+  {
+    "name": "Aransas",
+    "state": "TX"
+  },
+  {
+    "name": "Jack",
+    "state": "TX"
+  },
+  {
+    "name": "Hemphill",
+    "state": "TX"
+  },
+  {
+    "name": "Shackelford",
+    "state": "TX"
+  },
+  {
+    "name": "San Jacinto",
+    "state": "TX"
+  },
+  {
+    "name": "Kendall",
+    "state": "TX"
+  },
+  {
+    "name": "Wharton",
+    "state": "TX"
+  },
+  {
+    "name": "Floyd",
+    "state": "TX"
+  },
+  {
+    "name": "Karnes",
+    "state": "TX"
+  },
+  {
+    "name": "Kaufman",
+    "state": "TX"
+  },
+  {
+    "name": "Duval",
+    "state": "TX"
+  },
+  {
+    "name": "Johnson",
+    "state": "TX"
+  },
+  {
+    "name": "Franklin",
+    "state": "TX"
+  },
+  {
+    "name": "Edwards",
+    "state": "TX"
+  },
+  {
+    "name": "Waller",
+    "state": "TX"
+  },
+  {
+    "name": "Maverick",
+    "state": "TX"
+  },
+  {
+    "name": "Kleberg",
+    "state": "TX"
+  },
+  {
+    "name": "Gaines",
+    "state": "TX"
+  },
+  {
+    "name": "Martin",
+    "state": "TX"
+  },
+  {
+    "name": "Bowie",
+    "state": "TX"
+  },
+  {
+    "name": "Andrews",
+    "state": "TX"
+  },
+  {
+    "name": "Potter",
+    "state": "TX"
+  },
+  {
+    "name": "Garza",
+    "state": "TX"
+  },
+  {
+    "name": "Caldwell",
+    "state": "TX"
+  },
+  {
+    "name": "Parmer",
+    "state": "TX"
+  },
+  {
+    "name": "Titus",
+    "state": "TX"
+  },
+  {
+    "name": "Terry",
+    "state": "TX"
+  },
+  {
+    "name": "Foard",
+    "state": "TX"
+  },
+  {
+    "name": "Real",
+    "state": "TX"
+  },
+  {
+    "name": "Carson",
+    "state": "TX"
+  },
+  {
+    "name": "Knox",
+    "state": "TX"
+  },
+  {
+    "name": "Hays",
+    "state": "TX"
+  },
+  {
+    "name": "Medina",
+    "state": "TX"
+  },
+  {
+    "name": "Motley",
+    "state": "TX"
+  },
+  {
+    "name": "Wichita",
+    "state": "TX"
+  },
+  {
+    "name": "Midland",
+    "state": "TX"
+  },
+  {
+    "name": "Victoria",
+    "state": "TX"
+  },
+  {
+    "name": "Tyler",
+    "state": "TX"
+  },
+  {
+    "name": "Falls",
+    "state": "TX"
+  },
+  {
+    "name": "Presidio",
+    "state": "TX"
+  },
+  {
+    "name": "Willacy",
+    "state": "TX"
+  },
+  {
+    "name": "Lubbock",
+    "state": "TX"
+  },
+  {
+    "name": "Henderson",
+    "state": "TX"
+  },
+  {
+    "name": "Walker",
+    "state": "TX"
+  },
+  {
+    "name": "Galveston",
+    "state": "TX"
+  },
+  {
+    "name": "Harris",
+    "state": "TX"
+  },
+  {
+    "name": "Dawson",
+    "state": "TX"
+  },
+  {
+    "name": "Pecos",
+    "state": "TX"
+  },
+  {
+    "name": "Nacogdoches",
+    "state": "TX"
+  },
+  {
+    "name": "Guadalupe",
+    "state": "TX"
+  },
+  {
+    "name": "Tarrant",
+    "state": "TX"
+  },
+  {
+    "name": "Jackson",
+    "state": "TX"
+  },
+  {
+    "name": "Swisher",
+    "state": "TX"
+  },
+  {
+    "name": "Sterling",
+    "state": "TX"
+  },
+  {
+    "name": "Winkler",
+    "state": "TX"
+  },
+  {
+    "name": "Frio",
+    "state": "TX"
+  },
+  {
+    "name": "Lipscomb",
+    "state": "TX"
+  },
+  {
+    "name": "Collingsworth",
+    "state": "TX"
+  },
+  {
+    "name": "Colorado",
+    "state": "TX"
+  },
+  {
+    "name": "Wise",
+    "state": "TX"
+  },
+  {
+    "name": "Glasscock",
+    "state": "TX"
+  },
+  {
+    "name": "Shelby",
+    "state": "TX"
+  },
+  {
+    "name": "Comanche",
+    "state": "TX"
+  },
+  {
+    "name": "Burnet",
+    "state": "TX"
+  },
+  {
+    "name": "Gray",
+    "state": "TX"
+  },
+  {
+    "name": "Hudspeth",
+    "state": "TX"
+  },
+  {
+    "name": "Cass",
+    "state": "TX"
+  },
+  {
+    "name": "Ellis",
+    "state": "TX"
+  },
+  {
+    "name": "Cooke",
+    "state": "TX"
+  },
+  {
+    "name": "Williamson",
+    "state": "TX"
+  },
+  {
+    "name": "Cochran",
+    "state": "TX"
+  },
+  {
+    "name": "Van Zandt",
+    "state": "TX"
+  },
+  {
+    "name": "Donley",
+    "state": "TX"
+  },
+  {
+    "name": "Jones",
+    "state": "TX"
+  },
+  {
+    "name": "Grimes",
+    "state": "TX"
+  },
+  {
+    "name": "Irion",
+    "state": "TX"
+  },
+  {
+    "name": "Navarro",
+    "state": "TX"
+  },
+  {
+    "name": "Brooks",
+    "state": "TX"
+  },
+  {
+    "name": "Dallam",
+    "state": "TX"
+  },
+  {
+    "name": "Hunt",
+    "state": "TX"
+  },
+  {
+    "name": "Mitchell",
+    "state": "TX"
+  },
+  {
+    "name": "Wood",
+    "state": "TX"
+  },
+  {
+    "name": "Childress",
+    "state": "TX"
+  },
+  {
+    "name": "Jeff Davis",
+    "state": "TX"
+  },
+  {
+    "name": "Montague",
+    "state": "TX"
+  },
+  {
+    "name": "Brown",
+    "state": "TX"
+  },
+  {
+    "name": "Haskell",
+    "state": "TX"
+  },
+  {
+    "name": "Fisher",
+    "state": "TX"
+  },
+  {
+    "name": "Concho",
+    "state": "TX"
+  },
+  {
+    "name": "Coke",
+    "state": "TX"
+  },
+  {
+    "name": "Polk",
+    "state": "TX"
+  },
+  {
+    "name": "Cottle",
+    "state": "TX"
+  },
+  {
+    "name": "Young",
+    "state": "TX"
+  },
+  {
+    "name": "Lee",
+    "state": "TX"
+  },
+  {
+    "name": "Cherokee",
+    "state": "TX"
+  },
+  {
+    "name": "Hall",
+    "state": "TX"
+  },
+  {
+    "name": "Hood",
+    "state": "TX"
+  },
+  {
+    "name": "Archer",
+    "state": "TX"
+  },
+  {
+    "name": "Baylor",
+    "state": "TX"
+  },
+  {
+    "name": "San Augustine",
+    "state": "TX"
+  },
+  {
+    "name": "Madison",
+    "state": "TX"
+  },
+  {
+    "name": "Milam",
+    "state": "TX"
+  },
+  {
+    "name": "Reeves",
+    "state": "TX"
+  },
+  {
+    "name": "Nueces",
+    "state": "TX"
+  },
+  {
+    "name": "Camp",
+    "state": "TX"
+  },
+  {
+    "name": "Freestone",
+    "state": "TX"
+  },
+  {
+    "name": "Runnels",
+    "state": "TX"
+  },
+  {
+    "name": "Terrell",
+    "state": "TX"
+  },
+  {
+    "name": "Deaf Smith",
+    "state": "TX"
+  },
+  {
+    "name": "Marion",
+    "state": "TX"
+  },
+  {
+    "name": "Liberty",
+    "state": "TX"
+  },
+  {
+    "name": "Jasper",
+    "state": "TX"
+  },
+  {
+    "name": "Hansford",
+    "state": "TX"
+  },
+  {
+    "name": "Chambers",
+    "state": "TX"
+  },
+  {
+    "name": "Hardin",
+    "state": "TX"
+  },
+  {
+    "name": "Collin",
+    "state": "TX"
+  },
+  {
+    "name": "Brazoria",
+    "state": "TX"
+  },
+  {
+    "name": "Throckmorton",
+    "state": "TX"
+  },
+  {
+    "name": "Bastrop",
+    "state": "TX"
+  },
+  {
+    "name": "Scurry",
+    "state": "TX"
+  },
+  {
+    "name": "Ector",
+    "state": "TX"
+  },
+  {
+    "name": "Limestone",
+    "state": "TX"
+  },
+  {
+    "name": "Denton",
+    "state": "TX"
+  },
+  {
+    "name": "Red River",
+    "state": "TX"
+  },
+  {
+    "name": "Matagorda",
+    "state": "TX"
+  },
+  {
+    "name": "Hardeman",
+    "state": "TX"
+  },
+  {
+    "name": "Palo Pinto",
+    "state": "TX"
+  },
+  {
+    "name": "Live Oak",
+    "state": "TX"
+  },
+  {
+    "name": "Sherman",
+    "state": "TX"
+  },
+  {
+    "name": "Uvalde",
+    "state": "TX"
+  },
+  {
+    "name": "Bailey",
+    "state": "TX"
+  },
+  {
+    "name": "Culberson",
+    "state": "TX"
+  },
+  {
+    "name": "Atascosa",
+    "state": "TX"
+  },
+  {
+    "name": "Wilson",
+    "state": "TX"
+  },
+  {
+    "name": "Starr",
+    "state": "TX"
+  },
+  {
+    "name": "Dallas",
+    "state": "TX"
+  },
+  {
+    "name": "Kimble",
+    "state": "TX"
+  },
+  {
+    "name": "Mcculloch",
+    "state": "TX"
+  },
+  {
+    "name": "Crockett",
+    "state": "TX"
+  },
+  {
+    "name": "Hill",
+    "state": "TX"
+  },
+  {
+    "name": "Kent",
+    "state": "TX"
+  },
+  {
+    "name": "El Paso",
+    "state": "TX"
+  },
+  {
+    "name": "Loving",
+    "state": "TX"
+  },
+  {
+    "name": "Dickens",
+    "state": "TX"
+  },
+  {
+    "name": "La Salle",
+    "state": "TX"
+  },
+  {
+    "name": "Lamb",
+    "state": "TX"
+  },
+  {
+    "name": "Austin",
+    "state": "TX"
+  },
+  {
+    "name": "Hutchinson",
+    "state": "TX"
+  },
+  {
+    "name": "Val Verde",
+    "state": "TX"
+  },
+  {
+    "name": "Smith",
+    "state": "TX"
+  },
+  {
+    "name": "Robertson",
+    "state": "TX"
+  },
+  {
+    "name": "Gillespie",
+    "state": "TX"
+  },
+  {
+    "name": "King",
+    "state": "TX"
+  },
+  {
+    "name": "Tom Green",
+    "state": "TX"
+  },
+  {
+    "name": "Yoakum",
+    "state": "TX"
+  },
+  {
+    "name": "Somervell",
+    "state": "TX"
+  },
+  {
+    "name": "Kenedy",
+    "state": "TX"
+  },
+  {
+    "name": "Borden",
+    "state": "TX"
+  },
+  {
+    "name": "San Saba",
+    "state": "TX"
+  },
+  {
+    "name": "Burleson",
+    "state": "TX"
+  },
+  {
+    "name": "Bee",
+    "state": "TX"
+  },
+  {
+    "name": "Trinity",
+    "state": "TX"
+  },
+  {
+    "name": "Castro",
+    "state": "TX"
+  },
+  {
+    "name": "Brewster",
+    "state": "TX"
+  },
+  {
+    "name": "Gregg",
+    "state": "TX"
+  },
+  {
+    "name": "Ward",
+    "state": "TX"
+  },
+  {
+    "name": "Wilbarger",
+    "state": "TX"
+  },
+  {
+    "name": "Hamilton",
+    "state": "TX"
+  },
+  {
+    "name": "Stephens",
+    "state": "TX"
+  },
+  {
+    "name": "Lavaca",
+    "state": "TX"
+  },
+  {
+    "name": "Bosque",
+    "state": "TX"
+  },
+  {
+    "name": "Goliad",
+    "state": "TX"
+  },
+  {
+    "name": "Roberts",
+    "state": "TX"
+  },
+  {
+    "name": "Callahan",
+    "state": "TX"
+  },
+  {
+    "name": "Rains",
+    "state": "TX"
+  },
+  {
+    "name": "Morris",
+    "state": "TX"
+  },
+  {
+    "name": "Lampasas",
+    "state": "TX"
+  },
+  {
+    "name": "Upshur",
+    "state": "TX"
+  },
+  {
+    "name": "Wheeler",
+    "state": "TX"
+  },
+  {
+    "name": "San Patricio",
+    "state": "TX"
+  },
+  {
+    "name": "Moore",
+    "state": "TX"
+  },
+  {
+    "name": "Webb",
+    "state": "TX"
+  },
+  {
+    "name": "Blanco",
+    "state": "TX"
+  },
+  {
+    "name": "Newton",
+    "state": "TX"
+  },
+  {
+    "name": "Hockley",
+    "state": "TX"
+  },
+  {
+    "name": "Panola",
+    "state": "TX"
+  },
+  {
+    "name": "Anderson",
+    "state": "TX"
+  },
+  {
+    "name": "Cameron",
+    "state": "TX"
+  },
+  {
+    "name": "Montgomery",
+    "state": "TX"
+  },
+  {
+    "name": "Llano",
+    "state": "TX"
+  },
+  {
+    "name": "Mason",
+    "state": "TX"
+  },
+  {
+    "name": "Taylor",
+    "state": "TX"
+  },
+  {
+    "name": "Hartley",
+    "state": "TX"
+  },
+  {
+    "name": "Jim Wells",
+    "state": "TX"
+  },
+  {
+    "name": "Zapata",
+    "state": "TX"
+  },
+  {
+    "name": "Travis",
+    "state": "TX"
+  },
+  {
+    "name": "Howard",
+    "state": "TX"
+  },
+  {
+    "name": "Sierra",
+    "state": "CA"
+  },
+  {
+    "name": "Sacramento",
+    "state": "CA"
+  },
+  {
+    "name": "Santa Barbara",
+    "state": "CA"
+  },
+  {
+    "name": "Calaveras",
+    "state": "CA"
+  },
+  {
+    "name": "Ventura",
+    "state": "CA"
+  },
+  {
+    "name": "Los Angeles",
+    "state": "CA"
+  },
+  {
+    "name": "Sonoma",
+    "state": "CA"
+  },
+  {
+    "name": "Kings",
+    "state": "CA"
+  },
+  {
+    "name": "San Diego",
+    "state": "CA"
+  },
+  {
+    "name": "Placer",
+    "state": "CA"
+  },
+  {
+    "name": "San Francisco",
+    "state": "CA"
+  },
+  {
+    "name": "Marin",
+    "state": "CA"
+  },
+  {
+    "name": "Mariposa",
+    "state": "CA"
+  },
+  {
+    "name": "Lassen",
+    "state": "CA"
+  },
+  {
+    "name": "Napa",
+    "state": "CA"
+  },
+  {
+    "name": "Shasta",
+    "state": "CA"
+  },
+  {
+    "name": "Monterey",
+    "state": "CA"
+  },
+  {
+    "name": "Trinity",
+    "state": "CA"
+  },
+  {
+    "name": "Mendocino",
+    "state": "CA"
+  },
+  {
+    "name": "Inyo",
+    "state": "CA"
+  },
+  {
+    "name": "Mono",
+    "state": "CA"
+  },
+  {
+    "name": "Tuolumne",
+    "state": "CA"
+  },
+  {
+    "name": "Solano",
+    "state": "CA"
+  },
+  {
+    "name": "San Bernardino",
+    "state": "CA"
+  },
+  {
+    "name": "Contra Costa",
+    "state": "CA"
+  },
+  {
+    "name": "Alpine",
+    "state": "CA"
+  },
+  {
+    "name": "El Dorado",
+    "state": "CA"
+  },
+  {
+    "name": "Yolo",
+    "state": "CA"
+  },
+  {
+    "name": "Yuba",
+    "state": "CA"
+  },
+  {
+    "name": "San Benito",
+    "state": "CA"
+  },
+  {
+    "name": "Humboldt",
+    "state": "CA"
+  },
+  {
+    "name": "Riverside",
+    "state": "CA"
+  },
+  {
+    "name": "Kern",
+    "state": "CA"
+  },
+  {
+    "name": "Colusa",
+    "state": "CA"
+  },
+  {
+    "name": "Del Norte",
+    "state": "CA"
+  },
+  {
+    "name": "Modoc",
+    "state": "CA"
+  },
+  {
+    "name": "Fresno",
+    "state": "CA"
+  },
+  {
+    "name": "Madera",
+    "state": "CA"
+  },
+  {
+    "name": "Santa Clara",
+    "state": "CA"
+  },
+  {
+    "name": "Tehama",
+    "state": "CA"
+  },
+  {
+    "name": "San Joaquin",
+    "state": "CA"
+  },
+  {
+    "name": "Alameda",
+    "state": "CA"
+  },
+  {
+    "name": "Nevada",
+    "state": "CA"
+  },
+  {
+    "name": "Butte",
+    "state": "CA"
+  },
+  {
+    "name": "Merced",
+    "state": "CA"
+  },
+  {
+    "name": "Tulare",
+    "state": "CA"
+  },
+  {
+    "name": "Stanislaus",
+    "state": "CA"
+  },
+  {
+    "name": "Orange",
+    "state": "CA"
+  },
+  {
+    "name": "Imperial",
+    "state": "CA"
+  },
+  {
+    "name": "Sutter",
+    "state": "CA"
+  },
+  {
+    "name": "Amador",
+    "state": "CA"
+  },
+  {
+    "name": "Lake",
+    "state": "CA"
+  },
+  {
+    "name": "Plumas",
+    "state": "CA"
+  },
+  {
+    "name": "San Mateo",
+    "state": "CA"
+  },
+  {
+    "name": "Siskiyou",
+    "state": "CA"
+  },
+  {
+    "name": "Santa Cruz",
+    "state": "CA"
+  },
+  {
+    "name": "Glenn",
+    "state": "CA"
+  },
+  {
+    "name": "San Luis Obispo",
+    "state": "CA"
+  },
+  {
+    "name": "Clinton",
+    "state": "KY"
+  },
+  {
+    "name": "Allen",
+    "state": "KY"
+  },
+  {
+    "name": "Wayne",
+    "state": "KY"
+  },
+  {
+    "name": "Scott",
+    "state": "KY"
+  },
+  {
+    "name": "Edmonson",
+    "state": "KY"
+  },
+  {
+    "name": "Adair",
+    "state": "KY"
+  },
+  {
+    "name": "Gallatin",
+    "state": "KY"
+  },
+  {
+    "name": "Harrison",
+    "state": "KY"
+  },
+  {
+    "name": "Bourbon",
+    "state": "KY"
+  },
+  {
+    "name": "Perry",
+    "state": "KY"
+  },
+  {
+    "name": "Crittenden",
+    "state": "KY"
+  },
+  {
+    "name": "Knott",
+    "state": "KY"
+  },
+  {
+    "name": "Lawrence",
+    "state": "KY"
+  },
+  {
+    "name": "Morgan",
+    "state": "KY"
+  },
+  {
+    "name": "Muhlenberg",
+    "state": "KY"
+  },
+  {
+    "name": "Green",
+    "state": "KY"
+  },
+  {
+    "name": "Wolfe",
+    "state": "KY"
+  },
+  {
+    "name": "Robertson",
+    "state": "KY"
+  },
+  {
+    "name": "Lee",
+    "state": "KY"
+  },
+  {
+    "name": "Kenton",
+    "state": "KY"
+  },
+  {
+    "name": "Madison",
+    "state": "KY"
+  },
+  {
+    "name": "Martin",
+    "state": "KY"
+  },
+  {
+    "name": "Owsley",
+    "state": "KY"
+  },
+  {
+    "name": "Clay",
+    "state": "KY"
+  },
+  {
+    "name": "Harlan",
+    "state": "KY"
+  },
+  {
+    "name": "Elliott",
+    "state": "KY"
+  },
+  {
+    "name": "Pasco",
+    "state": "FL"
+  },
+  {
+    "name": "Cuyahoga",
+    "state": "OH"
+  }
+]

@@ -718,6 +718,43 @@ export async function createUser({ id, email, passwordHash = null, name, avatarU
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [id, email.toLowerCase(), passwordHash, name, avatarUrl, googleId, facebookId, now, now]
   );
+
+  // Seed default counties and cities for this new user
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const countiesPath = path.join(process.cwd(), 'server', 'us_counties.json');
+    if (fs.existsSync(countiesPath)) {
+      const countiesList = JSON.parse(fs.readFileSync(countiesPath, 'utf8'));
+      for (const c of countiesList) {
+        const countyId = randomUUID();
+        await query(
+          `INSERT INTO counties (id, state, county_name, user_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())
+           ON CONFLICT (state, county_name, user_id) DO NOTHING`,
+          [countyId, c.state, c.name, id]
+        );
+        
+        if (c.state === 'OH' && c.name.toLowerCase() === 'cuyahoga') {
+          const actualCounty = await query(
+            'SELECT id FROM counties WHERE user_id = $1 AND state = $2 AND LOWER(county_name) = $3',
+            [id, 'OH', 'cuyahoga']
+          );
+          const actualId = actualCounty[0]?.id || countyId;
+          await query(
+            `INSERT INTO cities (id, county_id, state, county_name, city_name, user_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+             ON CONFLICT (county_id, city_name) DO NOTHING`,
+            [randomUUID(), actualId, 'OH', 'Cuyahoga', 'Cleveland', id]
+          );
+        }
+      }
+      console.log(`[createUser] Successfully seeded ${countiesList.length} counties for user ${email}`);
+    }
+  } catch (err) {
+    console.error(`[createUser] Seeding counties failed for user ${email}:`, err.message);
+  }
+
   return getUserById(id);
 }
 
