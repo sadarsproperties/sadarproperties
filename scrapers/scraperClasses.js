@@ -193,6 +193,7 @@ export class DirectoryScraper extends BaseScraper {
         email: rawItem.email || '',
         address: rawItem.address || rawItem.location || '',
         state: rawItem.state || '',
+        city: rawItem.city || '',
         countyName: rawItem.countyName || rawItem.county || '',
         source: this.sourceName,
         sourceUrl: rawItem.url || rawItem.sourceUrl || '',
@@ -217,10 +218,55 @@ export class DirectoryScraper extends BaseScraper {
   async save(normalizedItem) {
     const { query, realtors, titleCompanies } = await import('../server/db.js');
 
+    const name = (normalizedItem.companyName || normalizedItem.name || '').trim();
+    if (!name) return null;
+
+    // Filter out garbage ads/promo entries from directory results
+    const lowerName = name.toLowerCase();
+    if (
+      lowerName.includes('manage your') ||
+      lowerName.includes('claim your') ||
+      lowerName.includes('featured real estate') ||
+      lowerName.includes('update your business')
+    ) {
+      console.log(`[DirectoryScraper - ${this.sourceName}] Ignored ad listing: "${name}"`);
+      return null;
+    }
+
+    // Dynamic county lookup based on city and state
+    const city = normalizedItem.city || '';
+    const state = normalizedItem.state || '';
+    if (city && state && (!normalizedItem.countyName || !normalizedItem.countyId)) {
+      try {
+        const countyRow = await query(
+          `SELECT c.id AS county_id, c.county_name
+           FROM cities ci
+           JOIN counties c ON ci.county_id = c.id
+           WHERE ci.user_id = $1 AND ci.state = $2 AND LOWER(ci.city_name) = $3`,
+          [this.userId, state.toUpperCase().trim(), city.toLowerCase().trim()]
+        );
+        if (countyRow.length > 0) {
+          normalizedItem.countyId = countyRow[0].county_id;
+          normalizedItem.countyName = countyRow[0].county_name;
+        } else {
+          // Fallback to first county in the state for this user
+          const countyOnly = await query(
+            'SELECT id, county_name FROM counties WHERE user_id = $1 AND state = $2 LIMIT 1',
+            [this.userId, state.toUpperCase().trim()]
+          );
+          if (countyOnly.length > 0) {
+            normalizedItem.countyId = countyOnly[0].id;
+            normalizedItem.countyName = countyOnly[0].county_name;
+          }
+        }
+      } catch (err) {
+        console.warn(`[DirectoryScraper - ${this.sourceName}] County lookup failed for ${city}, ${state}:`, err.message);
+      }
+    }
+
+    const county = (normalizedItem.countyName || '').trim().toLowerCase();
+
     if (this.entityType === 'title') {
-      const name = (normalizedItem.companyName || '').trim();
-      if (!name) return null;
-      const county = (normalizedItem.countyName || '').trim().toLowerCase();
       try {
         const existing = await query(
           "SELECT * FROM title_companies WHERE LOWER(company_name) = $1 AND LOWER(COALESCE(county_name, '')) = $2",
@@ -238,9 +284,6 @@ export class DirectoryScraper extends BaseScraper {
       }
     }
 
-    const name = (normalizedItem.name || '').trim();
-    if (!name) return null;
-    const county = (normalizedItem.countyName || '').trim().toLowerCase();
     try {
       const existing = await query(
         "SELECT * FROM realtors WHERE LOWER(name) = $1 AND LOWER(COALESCE(county_name, '')) = $2",
