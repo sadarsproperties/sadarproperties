@@ -15,6 +15,9 @@ import { scrapeAuction } from './scrapers/auction.js';
 import { scrapeSubjectTo } from './scrapers/subjectto.js';
 import { scrapeRealtors } from './scrapers/realtorsDirectory.js';
 import { scrapeTitleCompanies } from './scrapers/titleDirectory.js';
+import { scrapeRedfin } from './scrapers/redfin.js';
+import { scrapeRealtor } from './scrapers/realtor.js';
+import { scrapeHUD } from './scrapers/hud.js';
 
 const scrapers = {
   craigslist: scrapeCraigslist,
@@ -26,7 +29,10 @@ const scrapers = {
   auction: scrapeAuction,
   subjectto: scrapeSubjectTo,
   realtors: scrapeRealtors,
-  titlecompanies: scrapeTitleCompanies
+  titlecompanies: scrapeTitleCompanies,
+  redfin: scrapeRedfin,
+  realtor: scrapeRealtor,
+  hud: scrapeHUD
 };
 
 async function main() {

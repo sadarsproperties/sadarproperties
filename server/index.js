@@ -1095,7 +1095,7 @@ mountResource('title-companies', titleCompanies);
 // ==================== GEOGRAPHY / AREA STATS ====================
 
 // Per-county rollups: sellers, buyers, investors, realtors, title companies, properties.
-app.get('/api/geo/area-stats', requireAuth, async (_req, res) => {
+app.get('/api/geo/area-stats', requireAuth, async (req, res) => {
   try {
     res.json(await getAreaStats(req.user.id));
   } catch (err) {

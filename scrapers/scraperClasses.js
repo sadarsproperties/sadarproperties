@@ -352,6 +352,10 @@ export class HudScraper extends BaseScraper {
     this.adapter = new HUDAdapter();
   }
 
+  async normalize(rawItem) {
+    return this.adapter.normalize(rawItem);
+  }
+
   async scrape(filters = {}) {
     await this.connect();
     try {

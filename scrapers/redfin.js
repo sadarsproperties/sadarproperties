@@ -21,16 +21,6 @@ function isBlocked(title, bodyText) {
   );
 }
 
-function findPreloadedState(doc) {
-  const s = doc.querySelector('script[id*="PRELOADED_STATE"]');
-  if (!s || !s.textContent) return null;
-  try {
-    return JSON.parse(s.textContent);
-  } catch {
-    return null;
-  }
-}
-
 function extractHomesFromState(state) {
   // Redfin's preloaded state nests results under data.payload.* — search a few
   // known shapes defensively since Redfin restructures occasionally.
@@ -71,7 +61,18 @@ export async function scrapeRedfin(context, targetUrl) {
     );
   }
 
-  const state = await page.evaluate(findPreloadedState);
+  const state = await page.evaluate(() => {
+    function findPreloadedState() {
+      const s = document.querySelector('script[id*="PRELOADED_STATE" i], script[id*="preloaded-state" i], script[id*="preloadedState" i]');
+      if (!s || !s.textContent) return null;
+      try {
+        return JSON.parse(s.textContent);
+      } catch {
+        return null;
+      }
+    }
+    return findPreloadedState();
+  });
   if (!state) {
     console.warn('[Redfin Scraper] No __PRELOADED_STATE__ found. Returning empty result set.');
     return [];

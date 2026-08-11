@@ -25,7 +25,15 @@ export async function scrapeSubjectTo(context, targetUrl) {
     });
 
     console.log(`[Subject-To Scraper] Navigating to: ${targetUrl}`);
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const resp = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(2500);
+
+    // Detect anti-bot blocks so the readout reports WHY instead of "0 saved"
+    const __title = await page.title();
+    const __body = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
+    if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(__title + ' ' + __body)) {
+      throw new Error('Subject-to listing source is currently unavailable from this network (the site blocks automated access). Please try again later.');
+    }
 
     await page.waitForSelector('[class*="listing"], [class*="card"], [class*="post"], article, a[href*="/property"]', { timeout: 15000 }).catch(() => {
       console.log('[Subject-To Scraper] Listing selector not found. Parsing body directly.');
@@ -78,6 +86,7 @@ export async function scrapeSubjectTo(context, targetUrl) {
     console.log(`[Subject-To Scraper] Extracted ${listings.length} listings.`);
     return listings;
   } catch (err) {
+    if (err && err.message && err.message.includes('unavailable')) throw err;
     console.error(`[Subject-To Scraper] Failed: ${err.message}. Returning empty result set.`);
     return [];
   } finally {

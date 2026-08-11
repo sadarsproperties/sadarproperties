@@ -85,15 +85,28 @@ export class BaseScraper {
       if (!isNaN(parsed)) priceVal = parsed;
     }
 
+    let beds = rawItem.bedrooms ? parseInt(rawItem.bedrooms, 10) : null;
+    let baths = rawItem.bathrooms ? parseFloat(rawItem.bathrooms) : null;
+    let sqft = rawItem.square_feet ? parseInt(String(rawItem.square_feet).replace(/[^0-9]/g, ''), 10) : null;
+
+    if (rawItem.details) {
+      const parts = rawItem.details.split('|').map(p => p.trim());
+      for (const p of parts) {
+        if (p.includes('bd') || p.includes('bed')) beds = parseInt(p) || beds;
+        if (p.includes('ba') || p.includes('bath')) baths = parseFloat(p) || baths;
+        if (p.includes('sqft')) sqft = parseInt(p.replace(/,/g, '')) || sqft;
+      }
+    }
+
     return {
       address: rawItem.address || rawItem.title || 'Unknown Address',
       city: rawItem.city || rawItem.location || '',
       state: rawItem.state || '',
-      zip_code: rawItem.zip_code || rawItem.zip || '',
+      zip_code: rawItem.zip_code || rawItem.zipCode || rawItem.zip || '',
       price: priceVal,
-      bedrooms: rawItem.bedrooms ? parseInt(rawItem.bedrooms, 10) : null,
-      bathrooms: rawItem.bathrooms ? parseFloat(rawItem.bathrooms) : null,
-      square_feet: rawItem.square_feet ? parseInt(String(rawItem.square_feet).replace(/[^0-9]/g, ''), 10) : null,
+      bedrooms: beds,
+      bathrooms: baths,
+      square_feet: sqft,
       status: 'new',
       source_platform: this.sourceName,
       source_url: rawItem.url || '',
@@ -108,7 +121,7 @@ export class BaseScraper {
 
     // Duplicate detection: match on address + zip_code
     const cleanAddress = normalizedItem.address.trim().toLowerCase();
-    const cleanZip = String(normalizedItem.zip_code || '').trim().toLowerCase();
+    const cleanZip = String(normalizedItem.zip_code || normalizedItem.zipCode || '').trim().toLowerCase();
 
     try {
       const existing = await query(

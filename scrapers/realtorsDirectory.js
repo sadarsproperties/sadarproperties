@@ -23,7 +23,15 @@ export async function scrapeRealtors(context, targetUrl) {
     });
 
     console.log(`[Realtor Directory Scraper] Navigating to: ${targetUrl}`);
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const resp = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(2500);
+
+    // Detect anti-bot blocks so the readout reports WHY instead of "0 saved"
+    const __title = await page.title();
+    const __body = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
+    if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(__title + ' ' + __body)) {
+      throw new Error('Realtor.com directory is currently unavailable from this network (the site blocks automated access). Please try again later.');
+    }
 
     await page.waitForSelector('[class*="agent"], [class*="Agent"], [class*="card"], [itemprop="realEstateAgent"]', { timeout: 15000 }).catch(() => {
       console.log('[Realtor Directory Scraper] Agent selector not found. Parsing body directly.');
@@ -64,6 +72,7 @@ export async function scrapeRealtors(context, targetUrl) {
     console.log(`[Realtor Directory Scraper] Extracted ${agents.length} agents.`);
     return agents;
   } catch (err) {
+    if (err && err.message && err.message.includes('unavailable')) throw err;
     console.error(`[Realtor Directory Scraper] Failed: ${err.message}. Returning empty result set.`);
     return [];
   } finally {
