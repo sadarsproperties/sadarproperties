@@ -28,8 +28,7 @@ export async function scrapeTitleCompanies(context, targetUrl) {
 
     // Detect anti-bot blocks so the readout reports WHY instead of "0 saved"
     const __title = await page.title();
-    const __body = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
-    if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(__title + ' ' + __body)) {
+    if ((resp && resp.status() === 403) || /access denied|blocked|forbidden|captcha|just a moment/i.test(__title)) {
       throw new Error('Title company directory is currently unavailable from this network (the site blocks automated access). Please try again later.');
     }
 
@@ -39,29 +38,29 @@ export async function scrapeTitleCompanies(context, targetUrl) {
 
     const companies = await page.evaluate(() => {
       const items = [];
-      const cards = Array.from(document.querySelectorAll('[class*="member-card"], [class*="company-card"], [class*="listing"], [class*="result-item"], [class*="directory-item"]'));
+      const cards = Array.from(document.querySelectorAll('.result, [id^="lid-"], .info, [class*="member-card"], [class*="company-card"], [class*="listing"], [class*="result-item"], [class*="directory-item"]'));
 
       cards.forEach((card) => {
         try {
-          const nameEl = card.querySelector('[class*="name"], [class*="company"], [class*="title"], h2, h3, a');
+          const nameEl = card.querySelector('.business-name, [class*="name"], [class*="company"], [class*="title"], h2, h3, a');
           const companyName = nameEl ? nameEl.textContent.trim() : '';
 
           const contactEl = card.querySelector('[class*="contact"], [class*="agent"]');
           const contactName = contactEl ? contactEl.textContent.trim() : '';
 
-          const phoneEl = card.querySelector('[href^="tel:"], [class*="phone"]');
+          const phoneEl = card.querySelector('[href^="tel:"], .phone, [class*="phone"]');
           const phone = phoneEl ? (phoneEl.getAttribute('href') || phoneEl.textContent).replace('tel:', '').trim() : '';
 
           const emailEl = card.querySelector('[href^="mailto:"]');
           const email = emailEl ? emailEl.getAttribute('href').replace('mailto:', '').trim() : '';
 
-          const addressEl = card.querySelector('[class*="address"], [class*="location"]');
-          const address = addressEl ? addressEl.textContent.trim() : '';
+          const addressEl = card.querySelector('.adr, .street-address, [class*="address"], [class*="location"]');
+          const address = addressEl ? addressEl.textContent.trim().replace(/\s+/g, ' ') : '';
 
-          const linkEl = card.querySelector('a');
+          const linkEl = card.querySelector('.business-name, a');
           const url = linkEl ? linkEl.href : '';
 
-          if (companyName) {
+          if (companyName && companyName !== 'Learn More' && companyName !== 'Website') {
             items.push({ companyName, contactName, phone, email, address, url });
           }
         } catch (err) {
@@ -72,8 +71,30 @@ export async function scrapeTitleCompanies(context, targetUrl) {
       return items;
     });
 
-    console.log(`[Title Directory Scraper] Extracted ${companies.length} companies.`);
-    return companies;
+    let city = '';
+    let state = '';
+    try {
+      const urlObj = new URL(targetUrl);
+      const loc = urlObj.searchParams.get('l');
+      if (loc) {
+        const parts = loc.split(',');
+        if (parts.length === 2) {
+          city = parts[0].trim();
+          state = parts[1].trim().toUpperCase().slice(0, 2);
+        } else {
+          city = loc.trim();
+        }
+      }
+    } catch (e) {}
+
+    const processedCompanies = companies.map(c => ({
+      ...c,
+      city: c.city || city,
+      state: c.state || state
+    }));
+
+    console.log(`[Title Directory Scraper] Extracted ${processedCompanies.length} companies.`);
+    return processedCompanies;
   } catch (err) {
     if (err && err.message && err.message.includes('unavailable')) throw err;
     console.error(`[Title Directory Scraper] Failed: ${err.message}. Returning empty result set.`);

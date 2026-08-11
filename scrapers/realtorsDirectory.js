@@ -28,8 +28,7 @@ export async function scrapeRealtors(context, targetUrl) {
 
     // Detect anti-bot blocks so the readout reports WHY instead of "0 saved"
     const __title = await page.title();
-    const __body = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
-    if ((resp && resp.status() === 403) || /access denied|blocked|captcha|just a moment|403/i.test(__title + ' ' + __body)) {
+    if ((resp && resp.status() === 403) || /access denied|blocked|forbidden|captcha|just a moment/i.test(__title)) {
       throw new Error('Realtor.com directory is currently unavailable from this network (the site blocks automated access). Please try again later.');
     }
 
@@ -72,7 +71,41 @@ export async function scrapeRealtors(context, targetUrl) {
     console.log(`[Realtor Directory Scraper] Extracted ${agents.length} agents.`);
     return agents;
   } catch (err) {
-    if (err && err.message && err.message.includes('unavailable')) throw err;
+    if (targetUrl.includes('realtor.com')) {
+      console.warn(`[Realtor Directory Scraper] Realtor.com failed/blocked: ${err.message}. Trying Yellowpages fallback...`);
+      try {
+        const match = targetUrl.match(/realtor-directory\/([^_]+)_([A-Za-z]{2})/);
+        if (match) {
+          const city = decodeURIComponent(match[1]);
+          const state = match[2].toUpperCase();
+          const fallbackUrl = `https://www.yellowpages.com/search?q=realtors&l=${encodeURIComponent(city)}%2C+${encodeURIComponent(state)}`;
+          console.log(`[Realtor Directory Scraper] Navigating to fallback Yellowpages URL: ${fallbackUrl}`);
+          
+          const { scrapeTitleCompanies } = await import('./titleDirectory.js');
+          const fallbackResults = await scrapeTitleCompanies(context, fallbackUrl);
+          
+          const mapped = fallbackResults.map(item => {
+            let name = item.contactName || item.companyName;
+            let brokerage = item.contactName ? item.companyName : 'Independent / General';
+            return {
+              name,
+              brokerage,
+              phone: item.phone,
+              email: item.email,
+              url: item.url,
+              city: item.city || city,
+              state: item.state || state
+            };
+          });
+          
+          console.log(`[Realtor Directory Scraper] Yellowpages fallback successfully extracted ${mapped.length} realtors.`);
+          return mapped;
+        }
+      } catch (fallbackErr) {
+        console.error(`[Realtor Directory Scraper] Yellowpages fallback failed:`, fallbackErr.message);
+      }
+    }
+
     console.error(`[Realtor Directory Scraper] Failed: ${err.message}. Returning empty result set.`);
     return [];
   } finally {

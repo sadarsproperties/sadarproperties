@@ -586,17 +586,41 @@ export function buildSearchUrls(source, url, areas = []) {
     }
     return urls;
   }
+ 
+   if (lower === 'craigslist') {
+     const urls = [];
+     for (const a of usable) {
+       const slug = craigslistSubdomain(a.city);
+       if (slug) urls.push(`https://${slug}.craigslist.org/search/hhh`);
+     }
+     return urls;
+   }
 
-  if (lower === 'craigslist') {
-    const urls = [];
-    for (const a of usable) {
-      const slug = craigslistSubdomain(a.city);
-      if (slug) urls.push(`https://${slug}.craigslist.org/search/hhh`);
-    }
-    return urls;
-  }
+   if (lower === 'realtors' || lower === 'realtor directory' || lower === 'realtor') {
+     const urls = [];
+     for (const a of usable) {
+       if (a.city) {
+         const cityFormatted = a.city.trim().replace(/\s+/g, '_');
+         const st = a.state.trim().toUpperCase().slice(0, 2);
+         urls.push(`https://www.realtor.com/realtor-directory/${cityFormatted}_${st}`);
+       }
+     }
+     return urls;
+   }
 
-  return [];
+   if (lower === 'title companies' || lower === 'title directory' || lower === 'title' || lower === 'title-companies') {
+     const urls = [];
+     for (const a of usable) {
+       if (a.city) {
+         const cityFormatted = encodeURIComponent(a.city.trim());
+         const st = encodeURIComponent(a.state.trim().toUpperCase().slice(0, 2));
+         urls.push(`https://www.yellowpages.com/search?q=title+companies&l=${cityFormatted}%2C+${st}`);
+       }
+     }
+     return urls;
+   }
+
+   return [];
 }
 
 // Craigslist city subdomains don't always match the city name, so map the common
